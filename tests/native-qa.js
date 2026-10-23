@@ -6,7 +6,8 @@
     throw Error('Open the generated qa-vault/Good Tables QA.md note first.');
   const file = app.vault.getFileByPath(path);
   if (!file) throw Error('Prepare the generated QA note first.');
-  const wait = () => new Promise((resolve) => setTimeout(resolve, 300));
+  const wait = () =>
+    new Promise((resolve) => setTimeout(resolve, globalThis.goodTablesQADelay ?? 300));
   const assert = (condition, message) => {
     if (!condition) throw Error(message);
   };
@@ -20,6 +21,7 @@
       .filter((l) => l.view.file?.path === path);
     const text =
       '# Good Tables QA\n\nGenerated native compatibility note.\n\n| Item | Amount | Note |\n| --- | ---: | --- |\n| A | 1 | first |\n| B | 3 | second |\n| C | 5 | third |\n\nOutside paragraph.\n';
+    for (const old of previous) old.view.editor.setValue(text);
     await app.vault.modify(file, text);
     leaf = app.workspace.getLeaf('tab');
     await leaf.openFile(file, { state: { mode: 'source', source: false } });

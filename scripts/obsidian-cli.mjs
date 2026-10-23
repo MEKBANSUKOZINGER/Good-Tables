@@ -20,7 +20,7 @@ const parameters = [
 ];
 try {
   process.stdout.write(
-    execFileSync(executable, parameters, { encoding: 'utf8', timeout: 45000, windowsHide: true }),
+    execFileSync(executable, parameters, { encoding: 'utf8', timeout: 180000, windowsHide: true }),
   );
 } catch (error) {
   console.error(error.message);

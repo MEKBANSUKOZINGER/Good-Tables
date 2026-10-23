@@ -5,3 +5,5 @@ qa-profile/
 .test-build/
 main.js
 package-lock.json
+
+local-docs/

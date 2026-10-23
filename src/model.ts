@@ -95,7 +95,7 @@ export const DEFAULTS: Settings = {
   formatOrder: FORMAT_ORDER,
   warned: false,
 };
-export const uid = (): string => globalThis.crypto.randomUUID();
+export const uid = (): string => crypto.randomUUID();
 export const key = (r: number, c: number): string => `${r}:${c}`;
 export function contains(a: Rect, r: number, c: number): boolean {
   return r >= a.r0 && r <= a.r1 && c >= a.c0 && c <= a.c1;
@@ -134,8 +134,10 @@ export class TableError extends Error {
     super(code);
   }
 }
-export function normalizeSettings(raw: Partial<Settings> | null): Settings {
-  const s = { ...structuredClone(DEFAULTS), ...raw };
+export function normalizeSettings(raw: unknown): Settings {
+  const input =
+    raw && typeof raw === 'object' && !Array.isArray(raw) ? (raw as Partial<Settings>) : null;
+  const s = { ...structuredClone(DEFAULTS), ...input };
   const integer = (v: unknown, min: number, max: number, fallback: number) =>
     typeof v === 'number' && Number.isFinite(v)
       ? Math.max(min, Math.min(max, Math.round(v)))
@@ -179,7 +181,11 @@ export function normalizeSettings(raw: Partial<Settings> | null): Settings {
 function ordered<T extends string>(input: unknown, defaults: readonly T[]): T[] {
   return [
     ...new Set([
-      ...(Array.isArray(input) ? input.filter((v): v is T => defaults.includes(v)) : []),
+      ...(Array.isArray(input)
+        ? input.filter(
+            (v: unknown): v is T => typeof v === 'string' && defaults.some((value) => value === v),
+          )
+        : []),
       ...defaults,
     ]),
   ];

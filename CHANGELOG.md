@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.4 — 2026-10-23
+
+- Address the automated source review with supported style helpers and searchable declarative settings definitions.
+- Use timers and DOM helpers from the owning window/document for popout compatibility, retaining native table behavior and reversible decoration cleanup.
+- Validate decoded metadata as unknown, normalize untrusted settings input, and remove unnecessary assertions and unused bindings.
+- Replace CSS `!important` declarations with scoped selectors.
+- Add the official Obsidian ESLint checks, two owner-window timer regression tests, and a manual GitHub Actions build/provenance workflow.
+- Document clipboard usage and keep development notes and historical upload snapshots outside tracked source.
+
 ## 0.1.3 — 2026-10-23
 
 - Keep formats, colors, dimensions, and title assignments with cells during consecutive native row and column moves, including identical rows and blank columns.

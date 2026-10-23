@@ -44,7 +44,9 @@ export function afterNativeContextMenu(
   append: () => void,
   handled = () => event.defaultPrevented,
 ): void {
-  setTimeout(() => {
+  const timerWindow =
+    (event as UIEvent).view ?? (event.target as Node | null)?.ownerDocument?.defaultView ?? window;
+  timerWindow.setTimeout(() => {
     if (handled()) append();
   }, 0);
 }
@@ -69,7 +71,7 @@ export function appendMenuGroup(menu: MenuDOM, section: string): void {
   const separator = items[first - 1]?.dom;
   if (separator?.classList.contains('menu-separator') && !scrollEl.contains(separator))
     scrollEl.append(separator);
-  const group = dom.ownerDocument.createElement('div');
+  const group = scrollEl.createDiv();
   group.className = 'menu-group';
   for (const item of own) group.append(item.dom!);
   scrollEl.append(group);

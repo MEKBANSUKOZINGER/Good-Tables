@@ -1,6 +1,7 @@
 import { mkdir, writeFile, access } from 'node:fs/promises';
 import { resolve } from 'node:path';
-const folder = resolve('qa-vault'),
+const vaultPath = process.argv.slice(2).find((argument) => !argument.startsWith('--'));
+const folder = resolve(vaultPath ?? '.', 'qa-vault'),
   note = `${folder}/Good Tables QA.md`;
 await mkdir(folder, { recursive: true });
 try {

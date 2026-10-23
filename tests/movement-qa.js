@@ -7,7 +7,8 @@
     throw Error('Open the generated qa-vault/Good Tables QA.md note first.');
   const file = app.vault.getFileByPath(path);
   if (!file) throw Error('Prepare the generated QA note first.');
-  const wait = (ms = 250) => new Promise((resolve) => setTimeout(resolve, ms));
+  const wait = (ms = globalThis.goodTablesQADelay ?? 250) =>
+    new Promise((resolve) => setTimeout(resolve, ms));
   const assert = (ok, message) => {
     if (!ok) throw Error(message);
   };
@@ -37,7 +38,9 @@
           (r === 0 ? '\n| ' + row.map(() => '---').join(' | ') + ' |' : ''),
       )
       .join('\n');
-    await app.vault.modify(file, '# Good Tables QA\n\n' + table + '\n\nOutside.\n');
+    const source = '# Good Tables QA\n\n' + table + '\n\nOutside.\n';
+    for (const leaf of old) leaf.view.editor.setValue(source);
+    await app.vault.modify(file, source);
     const leaf = app.workspace.getLeaf('tab');
     await leaf.openFile(file, { state: { mode: 'source', source: false } });
     for (const l of old) l.detach();

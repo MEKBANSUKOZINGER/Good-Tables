@@ -1,6 +1,6 @@
 # Good Tables
 
-기존 Markdown 표에 서식·색상·대각선·병합 기능을 추가하는 Obsidian 데스크톱 플러그인입니다. 기본 표 편집기를 유지합니다. 개발 버전 0.1.3은 Obsidian 1.14.4 이상을 대상으로 합니다.
+기존 Markdown 표에 서식·색상·대각선·병합 기능을 추가하는 Obsidian 데스크톱 플러그인입니다. 기본 표 편집기를 유지합니다. 개발 버전 0.1.4는 Obsidian 1.14.4 이상을 대상으로 합니다.
 
 [English](README.md) · [변경 기록](CHANGELOG.md)
 
@@ -21,12 +21,13 @@
 
 ## 설치와 빌드
 
-[GitHub Releases](https://github.com/MEKBANSUKOZINGER/Good-Tables/releases)에서 `main.js`, `manifest.json`, `styles.css` 세 파일을 받아 볼트의 `.obsidian/plugins/good-tables/`에 복사하고 Obsidian에서 활성화합니다. 설치용 `good-tables-0.1.3.zip`에는 같은 파일들이 `good-tables/` 폴더에 들어 있습니다. GitHub가 자동 생성하는 소스 압축 파일은 먼저 빌드해야 합니다.
+[GitHub Releases](https://github.com/MEKBANSUKOZINGER/Good-Tables/releases)에서 `main.js`, `manifest.json`, `styles.css` 세 파일을 받아 볼트의 `.obsidian/plugins/good-tables/`에 복사하고 Obsidian에서 활성화합니다. 설치용 `good-tables-0.1.4.zip`에는 같은 파일들이 `good-tables/` 폴더에 들어 있습니다. GitHub가 자동 생성하는 소스 압축 파일은 먼저 빌드해야 합니다.
 
 소스에서 직접 빌드하려면 다음 명령을 실행합니다.
 
 ```sh
 npm ci
+npm run lint
 npm run build
 npm test
 npm run package
@@ -47,3 +48,17 @@ npm run package
 ## 라이선스
 
 [MIT 라이선스](LICENSE) · Copyright (c) 2026 MEKBANSUKOZINGER.
+
+## 0.1.4 검사 대응
+
+Obsidian 설정 검색에서 항목을 찾을 수 있도록 설정 API를 갱신했습니다. 별도 창의 타이머·DOM 생성 방식을 정리하고 직접 스타일 지정·불필요한 타입 단언·미사용 변수·CSS의 `!important`를 제거했습니다. 설정값과 기존 표의 저장 형식은 유지합니다.
+
+## 데이터와 클립보드
+
+Good Tables는 로컬에서 동작하며 네트워크 요청이나 사용 정보 전송을 하지 않습니다. 표 편집은 Obsidian 편집기를 통해 저장하고, 설정은 플러그인 데이터 API로 저장합니다.
+
+**원본 값 복사**는 선택한 칸의 원본 값을 탭으로 구분해 시스템 클립보드에 씁니다. **여러 셀 붙여넣기** 창과 다중 선택 붙여넣기는 사용자가 제공한 텍스트의 탭·줄바꿈을 열·행으로 해석합니다. 백그라운드에서 클립보드를 읽지 않으며, Obsidian 전용 표 클립보드 데이터는 기본 처리에 맡깁니다.
+
+## 배포 검증
+
+`npm run lint`로 공식 Obsidian 규칙을 검사합니다. GitHub Actions의 **Build and attest release assets**를 수동 실행하면 빌드·테스트·출처 증명을 거친 설치 파일을 받을 수 있습니다. 출처 증명을 사용하려면 그 결과물의 압축을 풀어 나온 세 파일을 그대로 Release Assets에 올립니다. 워크플로는 Release를 자동 발행하지 않습니다.

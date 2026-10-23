@@ -6,7 +6,8 @@
     .map((leaf) => leaf.view)
     .find((view) => /(^|\/)qa-vault\/Good Tables QA\.md$/.test(view.file?.path ?? ''));
   if (!view) throw Error('Open the generated QA note first.');
-  const wait = () => new Promise((resolve) => setTimeout(resolve, 250));
+  const wait = () =>
+    new Promise((resolve) => setTimeout(resolve, globalThis.goodTablesQADelay ?? 250));
   const assert = (condition, message) => {
     if (!condition) throw Error(message);
   };

@@ -9,6 +9,22 @@ import { afterNativeContextMenu, appendMenuGroup, nativeSelection } from '../src
 function fixture() {
   const window = new Window();
   const document = window.document;
+  Object.assign(window.HTMLElement.prototype, {
+    createEl(this: HTMLElement, tag: string) {
+      const child = this.ownerDocument.createElement(tag);
+      this.append(child);
+      return child;
+    },
+    createDiv(this: HTMLElement) {
+      return this.createEl('div');
+    },
+    createSpan(this: HTMLElement) {
+      return this.createEl('span');
+    },
+    setCssStyles(this: HTMLElement, styles: Partial<CSSStyleDeclaration>) {
+      Object.assign(this.style, styles);
+    },
+  });
   document.body.innerHTML =
     '<div class="wrapper"><table class="native"><thead><tr><th><strong>A</strong></th><th>B</th></tr></thead><tbody><tr><td>1</td><td>3</td></tr></tbody></table></div>';
   return { window, document, table: document.querySelector('table')! };
@@ -135,7 +151,7 @@ test('native selection maps full rows/columns and rejects disconnected shapes', 
 
 test('context extension waits through capture microtasks for the complete native menu event', async () => {
   const { window } = fixture();
-  const event = new window.MouseEvent('contextmenu', { cancelable: true });
+  const event = new window.MouseEvent('contextmenu', { cancelable: true, view: window });
   let appended = 0;
   afterNativeContextMenu(event as unknown as Event, () => appended++);
   await Promise.resolve();
@@ -144,7 +160,7 @@ test('context extension waits through capture microtasks for the complete native
   event.preventDefault(); // The later native cell/bubble handler creates its menu.
   await new Promise((resolve) => setTimeout(resolve, 15));
   assert.equal(appended, 1);
-  const unhandled = new window.MouseEvent('contextmenu', { cancelable: true });
+  const unhandled = new window.MouseEvent('contextmenu', { cancelable: true, view: window });
   afterNativeContextMenu(unhandled as unknown as Event, () => appended++);
   await new Promise((resolve) => setTimeout(resolve, 15));
   assert.equal(appended, 1, 'Do not create a replacement menu for an unhandled native event');
@@ -313,4 +329,56 @@ test('submenu stays open across its gap, then closes when the pointer leaves bot
   // The caller may also dispose while unloading the plugin.
   stop();
   assert.equal(disposed, 1);
+});
+
+test('native menu extension uses the event owner window timer', async () => {
+  const { window } = fixture();
+  const schedule = window.setTimeout.bind(window);
+  let scheduled = 0,
+    appended = 0;
+  window.setTimeout = (...args) => {
+    scheduled++;
+    return schedule(...args);
+  };
+  const event = new window.MouseEvent('contextmenu', { cancelable: true, view: window });
+  event.preventDefault();
+  afterNativeContextMenu(event as unknown as Event, () => appended++);
+  assert.equal(scheduled, 1, 'The context menu must use its own popout timer');
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(appended, 1);
+  window.close();
+});
+test('submenu timers and cancellation belong to the menu owner window', async () => {
+  const { window, document } = fixture();
+  const owner = document.createElement('div');
+  const submenu = document.createElement('div');
+  document.body.append(owner, submenu);
+  let scheduled = 0,
+    cancelled = 0,
+    closed = 0;
+  const schedule = window.setTimeout.bind(window);
+  const cancel = window.clearTimeout.bind(window);
+  window.setTimeout = (...args) => {
+    scheduled++;
+    return schedule(...args);
+  };
+  window.clearTimeout = (...args) => {
+    cancelled++;
+    cancel(...args);
+  };
+  const dispose = closeSubmenuOnExit(
+    owner as unknown as HTMLElement,
+    submenu as unknown as HTMLElement,
+    () => closed++,
+    20,
+  );
+  owner.dispatchEvent(new window.MouseEvent('mouseenter'));
+  owner.dispatchEvent(new window.MouseEvent('mouseleave', { relatedTarget: document.body }));
+  submenu.dispatchEvent(new window.MouseEvent('mouseenter'));
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  assert.equal(scheduled, 1);
+  assert.ok(cancelled >= 1);
+  assert.equal(closed, 0);
+  dispose();
+  window.close();
 });

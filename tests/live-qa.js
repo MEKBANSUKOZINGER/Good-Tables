@@ -13,7 +13,8 @@
   if (!p) throw Error('Good Tables is not loaded');
   const savedSettings = structuredClone(p.settings);
   try {
-    const wait = () => new Promise((resolve) => setTimeout(resolve, 300));
+    const wait = () =>
+      new Promise((resolve) => setTimeout(resolve, globalThis.goodTablesQADelay ?? 300));
     const assert = (condition, message) => {
       if (!condition) throw Error(message);
     };

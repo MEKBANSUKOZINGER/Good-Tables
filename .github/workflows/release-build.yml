@@ -1,0 +1,49 @@
+name: Build and attest release assets
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+  attestations: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run package
+      - name: Check release versions
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          import assert from 'node:assert/strict';
+          const read = (path) => JSON.parse(readFileSync(path, 'utf8'));
+          const manifest = read('manifest.json');
+          assert.match(manifest.version, /^\d+\.\d+\.\d+$/);
+          assert.equal(read('package.json').version, manifest.version);
+          assert.equal(read('versions.json')[manifest.version], manifest.minAppVersion);
+          if (process.env.GITHUB_REF_TYPE === 'tag') assert.equal(process.env.GITHUB_REF_NAME, manifest.version);
+          NODE
+      - name: Attest installation files
+        uses: actions/attest@v4
+        with:
+          subject-path: |
+            release/good-tables/main.js
+            release/good-tables/manifest.json
+            release/good-tables/styles.css
+      - uses: actions/upload-artifact@v7
+        with:
+          name: good-tables-release-assets
+          path: release/good-tables/
+          if-no-files-found: error

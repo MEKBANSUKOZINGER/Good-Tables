@@ -2,7 +2,7 @@
 
 Good Tables adds presentation and editing tools to Obsidian's native Markdown tables. It supports existing tables without replacing the native table editor.
 
-Desktop only. Development version **0.1.3** requires Obsidian **1.14.4 or later**. [한국어 안내](README.ko.md) · [Changelog](CHANGELOG.md).
+Desktop only. Development version **0.1.4** requires Obsidian **1.14.4 or later**. [한국어 안내](README.ko.md) · [Changelog](CHANGELOG.md).
 
 ## Features
 
@@ -23,7 +23,7 @@ Version 0.1.3 synchronizes formatting metadata within native editing transaction
 
 ## Install
 
-Download `main.js`, `manifest.json`, and `styles.css` from a [GitHub release](https://github.com/MEKBANSUKOZINGER/Good-Tables/releases), or build them locally. Copy all three files into `<vault>/.obsidian/plugins/good-tables/`. Reload Obsidian and enable **Good Tables** in Community plugins. The optional `good-tables-0.1.3.zip` contains the same files inside a `good-tables/` folder; GitHub's automatic source archives require building first.
+Download `main.js`, `manifest.json`, and `styles.css` from a [GitHub release](https://github.com/MEKBANSUKOZINGER/Good-Tables/releases), or build them locally. Copy all three files into `<vault>/.obsidian/plugins/good-tables/`. Reload Obsidian and enable **Good Tables** in Community plugins. The optional `good-tables-0.1.4.zip` contains the same files inside a `good-tables/` folder; GitHub's automatic source archives require building first.
 
 The creation command is **Good Tables: Create table**. Assign its hotkey in Obsidian's Hotkeys settings. No hotkey is assigned automatically.
 
@@ -49,6 +49,7 @@ Unambiguous external row/column edits carry styles with their original cells. If
 
 ```sh
 npm ci
+npm run lint
 npm run build
 npm test
 npm run package
@@ -77,3 +78,19 @@ No user notes, development profiles, dependency directories, or local plugin set
 ## License
 
 [MIT](LICENSE) · Copyright (c) 2026 MEKBANSUKOZINGER.
+
+## Privacy and permissions
+
+Good Tables runs locally and makes no network requests or telemetry uploads. It reads table contents and writes Markdown changes and presentation metadata through Obsidian's editor. Settings are stored through Obsidian's plugin data API.
+
+**Clipboard access:** choosing **Copy original values** writes the selected cells' raw values as tab-separated text to the system clipboard. The paste dialog and the multi-cell paste handler distribute user-provided tab/newline-separated text into cells. The plugin does not read clipboard contents in the background. Obsidian's native table clipboard data remains handled by Obsidian.
+
+## Release verification
+
+Run `npm run lint` to check source against the official Obsidian ESLint rules. The development-only Moment override updates the official lint tool's transitive dependency; it is not bundled into the plugin.
+
+The manually triggered **Build and attest release assets** workflow builds and tests the selected branch or tag, generates GitHub provenance attestations, and provides the three installation files as a workflow artifact. To keep the attestations valid, upload those exact extracted files as the release assets. The workflow does not create or publish a release.
+
+For every version update, publish a new GitHub Release with a tag exactly matching `manifest.json` and attach **main.js**, **manifest.json**, and **styles.css** individually.
+
+For a repository outside the vault, generate the QA note with `node scripts/prepare-qa.mjs "<vault-path>"`. Run live QA with Obsidian in the foreground; background timer throttling can delay the UI. The optional `globalThis.goodTablesQADelay` value adjusts waits in the table QA scripts. Use `tests/settings-qa.js` to check the actual settings window; it restores settings after the checks.

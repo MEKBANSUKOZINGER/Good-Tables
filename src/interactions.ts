@@ -45,11 +45,12 @@ export function closeSubmenuOnExit(
   onDispose: () => void = () => {},
 ): () => void {
   const document = owner.ownerDocument;
-  let timer: ReturnType<typeof setTimeout> | undefined;
+  const window = document.defaultView!;
+  let timer: number | undefined;
   let watching = false;
   let disposed = false;
   const cancel = () => {
-    clearTimeout(timer);
+    window.clearTimeout(timer);
     timer = undefined;
   };
   const inside = (target: EventTarget | null) =>
@@ -61,7 +62,7 @@ export function closeSubmenuOnExit(
   };
   const leave = () => {
     if (timer !== undefined) return;
-    timer = setTimeout(() => {
+    timer = window.setTimeout(() => {
       finish();
       close();
     }, delay);

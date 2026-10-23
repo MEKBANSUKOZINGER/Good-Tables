@@ -102,7 +102,7 @@ export function decorateTable(
         const formatted = cm.format && (!title || s.formatTitles);
         if (formatted) {
           const output = displayCell(rows, data, r, c, s);
-          const overlay = track(document.createElement('span'));
+          const overlay = track(cell.createSpan());
           overlay.className = 'gt-display';
           overlay.textContent = output.text;
           overlay.setAttribute('aria-label', output.text);
@@ -124,7 +124,7 @@ export function decorateTable(
           ...(r === 0 ? (['column'] as const) : []),
           ...(c === 0 ? (['row'] as const) : []),
         ]) {
-          const handle = track(document.createElement('span'));
+          const handle = track(cell.createSpan());
           handle.className = `gt-resize-${axis}`;
           cell.append(handle);
           listen(handle, 'pointerdown', ((event: PointerEvent) => {
@@ -192,9 +192,9 @@ export function decorateTable(
   const parent = table.parentElement;
   const parentPosition = parent?.style.position ?? '';
   const parentStyle = parent?.getAttribute('style');
-  if (parent) parent.style.position = 'relative';
+  if (parent) parent.setCssStyles({ position: 'relative' });
   const addOverlay = (rect: Rect, className: string) => {
-    const overlay = track(document.createElement('div'));
+    const overlay = track((parent ?? table).createDiv());
     overlay.className = className;
     parent?.append(overlay);
     overlays.push({ element: overlay, rect });
@@ -217,7 +217,7 @@ export function decorateTable(
         e.preventDefault();
         e.stopPropagation();
         cells[rect.r0][rect.c0].dispatchEvent(
-          new PointerEvent('contextmenu', {
+          new document.defaultView!.PointerEvent('contextmenu', {
             pointerType: 'mouse',
             bubbles: true,
             cancelable: true,
@@ -242,7 +242,7 @@ export function decorateTable(
       overlay.textContent = output.text.replace(/<br\s*\/?>/gi, '\n');
       if (!data.cells[a.r0][a.c0].format && renderMarkdown) {
         overlay.textContent = '';
-        const content = document.createElement('div');
+        const content = overlay.createDiv();
         content.className = 'gt-merge-content';
         overlay.append(content);
         renderMarkdown(output.text, content);
@@ -254,8 +254,8 @@ export function decorateTable(
     }
     if (data.diagonal) {
       const overlay = addOverlay({ r0: 0, r1: 0, c0: 0, c1: 0 }, 'gt-diagonal-overlay');
-      const lower = document.createElement('span'),
-        upper = document.createElement('span');
+      const lower = overlay.createSpan(),
+        upper = overlay.createSpan();
       lower.className = 'gt-diagonal-lower';
       upper.className = 'gt-diagonal-upper';
       lower.textContent = data.diagonal.lower.replace(/<br\s*\/?>/gi, '\n');
@@ -285,7 +285,7 @@ export function decorateTable(
     for (const { element, rect } of overlays) {
       const a = cells[rect.r0][rect.c0].getBoundingClientRect(),
         b = cells[rect.r1][rect.c1].getBoundingClientRect();
-      Object.assign(element.style, {
+      element.setCssStyles({
         left: `${a.left - p.left + parent.scrollLeft}px`,
         top: `${a.top - p.top + parent.scrollTop}px`,
         width: `${b.right - a.left}px`,
@@ -325,7 +325,7 @@ export function decorateTable(
       }
       restoreTable();
       if (parent) {
-        if (parent.style.position === 'relative') parent.style.position = parentPosition;
+        if (parent.style.position === 'relative') parent.setCssStyles({ position: parentPosition });
         if (!parent.style.length && parentStyle == null) parent.removeAttribute('style');
       }
     },

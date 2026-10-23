@@ -84,7 +84,7 @@ interface ContextMenuRequest {
 }
 class Controller {
   bindings: Binding[] = [];
-  private timer: ReturnType<typeof setTimeout> | undefined;
+  private timer: number | undefined;
   private observer: MutationObserver;
   private dragging: { binding: Binding; r: number; c: number } | undefined;
   private dead = false;
@@ -322,9 +322,9 @@ class Controller {
     if (update.docChanged || update.viewportChanged || update.geometryChanged) this.schedule();
   }
   rememberMove(b: Binding, row: number, col: number): void {
-    const container = b.element.closest('.cm-table-widget') as
-      | (HTMLElement & { cmTile?: { widget?: NonNullable<Controller['nativeIntent']>['widget'] } })
-      | null;
+    const container = b.element.closest<
+      HTMLElement & { cmTile?: { widget?: NonNullable<Controller['nativeIntent']>['widget'] } }
+    >('.cm-table-widget');
     const widget = container?.cmTile?.widget;
     this.nativeIntent =
       widget && b.table.metadata ? { id: b.table.metadata.id, row, col, widget } : undefined;
@@ -366,8 +366,9 @@ class Controller {
   }
   schedule(): void {
     if (this.dead) return;
-    clearTimeout(this.timer);
-    this.timer = setTimeout(() => this.refresh(), 60);
+    const window = this.view.dom.ownerDocument.defaultView!;
+    window.clearTimeout(this.timer);
+    this.timer = window.setTimeout(() => this.refresh(), 60);
   }
   private cell(target: EventTarget | null): { binding: Binding; r: number; c: number } | undefined {
     const td = (target as Element | null)?.closest?.('td,th') as HTMLTableCellElement | null;
@@ -490,7 +491,7 @@ class Controller {
   destroy(): void {
     this.dead = true;
     this.releaseSelection();
-    clearTimeout(this.timer);
+    this.view.dom.ownerDocument.defaultView!.clearTimeout(this.timer);
     this.observer.disconnect();
     this.nativeIntent = undefined;
     this.bindings.forEach((b) => b.decorated.dispose());
@@ -529,22 +530,14 @@ export default class GoodTables extends Plugin {
         return controller ? (old, current) => controller.movement(old, current) : undefined;
       }),
     );
-    const plugin = this;
     this.registerEditorExtension(
-      ViewPlugin.fromClass(
-        class {
-          private controller: Controller;
-          constructor(view: EditorView) {
-            this.controller = new Controller(plugin, view);
-          }
-          update(u: ViewUpdate) {
-            this.controller.update(u);
-          }
-          destroy() {
-            this.controller.destroy();
-          }
-        },
-      ),
+      ViewPlugin.define((view) => {
+        const controller = new Controller(this, view);
+        return {
+          update: (update: ViewUpdate) => controller.update(update),
+          destroy: () => controller.destroy(),
+        };
+      }),
     );
     this.addCommand({
       id: 'create-table',
@@ -671,8 +664,7 @@ export default class GoodTables extends Plugin {
             if (diagonal()) m.diagonal = { lower: '', upper: '' };
             const at = editor.posToOffset(cursor),
               eol = original.includes('\r\n') ? '\r\n' : '\n';
-            const before = original.slice(0, at),
-              after = original.slice(at);
+            const before = original.slice(0, at);
             const lead =
               before && !before.endsWith(eol + eol) ? (before.endsWith(eol) ? eol : eol + eol) : '';
             const text =
@@ -792,7 +784,7 @@ export default class GoodTables extends Plugin {
     let m: Metadata;
     try {
       m = reconcile(this.locate(b).table);
-    } catch (error) {
+    } catch {
       menu.addSeparator();
       menu.addItem((item) =>
         item

@@ -140,7 +140,7 @@ export function scanTables(source: string): Table[] {
           chunks.push(match[4]);
           table.metadataTo = offsets[metadataLine + part] + lines[metadataLine + part].length;
         }
-        const value = JSON.parse(decodeURIComponent(chunks.join('')));
+        const value: unknown = JSON.parse(decodeURIComponent(chunks.join('')));
         if (!validMetadata(value) || value.id !== id) throw Error();
         table.metadata = value;
       } catch {
@@ -161,7 +161,7 @@ export function scanTables(source: string): Table[] {
         const match = parts.join('\n').match(/^<!-- good-tables:([\s\S]*?)-->\s*$/);
         if (!match) throw Error();
         table.metadataTo = offsets[last] + lines[last].length;
-        const value = JSON.parse(decodeURIComponent(match[1].replace(/\s/g, '')));
+        const value: unknown = JSON.parse(decodeURIComponent(match[1].replace(/\s/g, '')));
         if (!validMetadata(value)) throw Error();
         table.metadata = value;
       } catch {
@@ -457,7 +457,7 @@ export function remapMetadata(
           : cm[c] < 0 && rm[r] >= 0
             ? inheritedFormat(before.cells[rm[r]], 'row')
             : undefined;
-      return { id: globalThis.crypto.randomUUID(), ...(format ? { format } : {}) };
+      return { id: crypto.randomUUID(), ...(format ? { format } : {}) };
     }),
   );
   m.headerRows = rm.flatMap((old, r) => (before.headerRows.includes(old) ? [r] : []));
