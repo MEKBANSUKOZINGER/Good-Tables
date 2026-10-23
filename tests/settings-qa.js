@@ -9,8 +9,8 @@
   const wait = () => new Promise((resolve) => setTimeout(resolve, 300));
   const tab = app.setting.pluginTabs.find((tab) => tab.plugin === p);
   assert(tab, 'Good Tables settings tab missing');
-  const document = tab.containerEl.ownerDocument;
-  const window = document.defaultView;
+  let document = tab.containerEl.ownerDocument;
+  let window = document.defaultView;
   const flatten = (items) => items.flatMap((item) => (item.items ? flatten(item.items) : [item]));
   const row = (label) =>
     [...tab.containerEl.querySelectorAll('.setting-item')].find(
@@ -21,6 +21,8 @@
     app.setting.open();
     app.setting.openTabById('good-tables');
     await wait();
+    document = tab.containerEl.ownerDocument;
+    window = document.defaultView;
     const definitions = flatten(tab.getSettingDefinitions());
     assert(
       definitions.some((item) => item.name === p.t('language')) &&
@@ -29,6 +31,27 @@
     );
     assert(row(p.t('rows'))?.querySelector('input'), 'Declarative numeric setting did not render');
     results.push('settings definitions expose searchable labels and render native controls');
+    const groups = tab.getSettingDefinitions().filter((item) => item.type === 'group');
+    assert(
+      groups.find((group) => group.heading === p.t('defaults'))?.items.length === 3,
+      'New table defaults must contain exactly rows, columns and diagonal',
+    );
+    assert(
+      groups.some((group) => group.heading === p.t('tableSettings')),
+      'Table settings group missing',
+    );
+    for (const key of ['titleBackground', 'titleColor']) {
+      const input = row(p.t(key)).querySelector('input[type=text]');
+      assert(input, 'Title color HEX input missing');
+      input.value = '#abcdef';
+      input.dispatchEvent(new window.Event('input', { bubbles: true }));
+      await wait();
+      assert(p.settings[key] === '#abcdef', 'Title color HEX did not save');
+      input.value = '#invalid';
+      input.dispatchEvent(new window.Event('input', { bubbles: true }));
+      assert(p.settings[key] === '#abcdef', 'Invalid title HEX saved');
+    }
+    results.push('new table defaults separated and both title color HEX fields save valid values');
 
     const rowsInput = row(p.t('rows')).querySelector('input');
     rowsInput.value = '0';
@@ -67,6 +90,38 @@
       'Preset deletion did not refresh',
     );
     results.push('dynamic presets update rendered rows and search definitions');
+    row(p.t('add')).querySelector('button').click();
+    await wait();
+    const form =
+      document.querySelector('.gt-modal') ?? globalThis.document.querySelector('.gt-modal');
+    const fields = form.querySelectorAll('input');
+    fields[0].value = 'QA saved format';
+    fields[1].value = '[';
+    fields[2].value = ']';
+    form.querySelector('.mod-cta').click();
+    await wait();
+    const created = p.settings.presets.find((preset) => preset.name === 'QA saved format');
+    assert(
+      created?.id && p.settings.formatOrder.includes(`preset:${created.id}`),
+      'New saved format missing stable menu ID',
+    );
+    row(p.t('formatOrder')).querySelector('button').click();
+    await wait();
+    const order =
+      document.querySelector('.gt-modal') ?? globalThis.document.querySelector('.gt-modal');
+    const item = [...order.querySelectorAll('.gt-order-item')].find((el) =>
+      el.textContent.includes('QA saved format'),
+    );
+    assert(item, 'Saved format missing from order dialog');
+    const previous = p.settings.formatOrder.indexOf(`preset:${created.id}`);
+    item.querySelector('button').click();
+    order.querySelector('.mod-cta').click();
+    await wait();
+    assert(
+      p.settings.formatOrder.indexOf(`preset:${created.id}`) === previous - 1,
+      'Saved format order did not change',
+    );
+    results.push('adding a saved format creates an independently reorderable menu item');
 
     p.settings.favorites = ['#123456'];
     await p.saveSettings();
@@ -74,11 +129,13 @@
     await wait();
     row(p.t('favorites')).querySelector('button').click();
     await wait();
-    const modal = document.querySelector('.gt-modal');
+    const modal =
+      document.querySelector('.gt-modal') ?? globalThis.document.querySelector('.gt-modal');
     assert(modal, 'Color dialog missing');
     assert(
-      window.getComputedStyle(modal.querySelector('.gt-color-picker')).height === '130px',
-      'Color picker size changed',
+      window.getComputedStyle(modal.querySelector('.gt-color-surface')).height === '220px' &&
+        modal.querySelector('.gt-hue-strip[type=range]'),
+      'Always-visible color surface and hue strip missing',
     );
     const swatch = window.getComputedStyle(modal.querySelector('.gt-swatch'));
     assert(swatch.width === '30px' && swatch.height === '30px', 'Favorite swatch size changed');
@@ -88,7 +145,12 @@
     );
     results.push('scoped CSS preserves picker and swatch dimensions without important');
 
-    document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    modal.ownerDocument.dispatchEvent(
+      new modal.ownerDocument.defaultView.KeyboardEvent('keydown', {
+        key: 'Escape',
+        bubbles: true,
+      }),
+    );
     await wait();
     assert(
       !Object.hasOwn(Object.getPrototypeOf(tab), 'display'),

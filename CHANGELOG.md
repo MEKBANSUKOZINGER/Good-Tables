@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.0 — 2026-10-23
+
+- Reuse table decoration and coalesce refreshes before paint to prevent temporary loss of dimensions and formatting during edits and native row/column moves.
+- Append Good Tables to asynchronously created single-cell context menus while preserving native entries.
+- Replace the native color button with a visible saturation/brightness surface and hue strip, synchronized with HEX/RGB inputs.
+- Edit both diagonal values in place with multiline input, IME composition, caret/focus continuity, and native undo/redo.
+- Keep only rows, columns, and diagonal in New table defaults; group the remaining table options under Table settings and expose title background/text HEX inputs.
+- Give saved custom formats stable menu IDs and independently configurable positions in the format menu.
+
+Validation: 52 automated tests and 48 live-app QA scenarios passed on Obsidian 1.14.5, including frame sampling for layout stability and actual mouse/keyboard checks.
+
 ## 0.1.4 — 2026-10-23
 
 - Address the automated source review with supported style helpers and searchable declarative settings definitions.

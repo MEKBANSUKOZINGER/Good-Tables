@@ -1,6 +1,6 @@
 {
   "name": "good-tables",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "private": true,
   "license": "MIT",
   "description": "Add formatting, diagonal cells and non-destructive merges to native Obsidian Markdown tables.",

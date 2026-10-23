@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { Window } from 'happy-dom';
 import { decorateTable } from '../src/render';
 import { DEFAULTS, makeMetadata } from '../src/model';
+import { ColorPicker, hexToHsv, hsvToHex } from '../src/color-picker';
 import { applyFormat, mergeCells } from '../src/operations';
 import { closeSubmenuOnExit, watchSelectionBoundary } from '../src/interactions';
 import { afterNativeContextMenu, appendMenuGroup, nativeSelection } from '../src/native-table';
@@ -10,19 +11,34 @@ function fixture() {
   const window = new Window();
   const document = window.document;
   Object.assign(window.HTMLElement.prototype, {
-    createEl(this: HTMLElement, tag: string) {
+    createEl(
+      this: HTMLElement,
+      tag: string,
+      options?: { cls?: string; text?: string; type?: string; attr?: Record<string, string> },
+    ) {
       const child = this.ownerDocument.createElement(tag);
+      if (options?.cls) child.className = options.cls;
+      if (options?.text) child.textContent = options.text;
+      if (options?.type) child.setAttribute('type', options.type);
+      for (const [key, value] of Object.entries(options?.attr ?? {}))
+        child.setAttribute(key, value);
       this.append(child);
       return child;
     },
-    createDiv(this: HTMLElement) {
-      return this.createEl('div');
+    createDiv(this: HTMLElement, options?: DomElementInfo) {
+      return this.createEl('div', options);
     },
-    createSpan(this: HTMLElement) {
-      return this.createEl('span');
+    createSpan(this: HTMLElement, options?: DomElementInfo) {
+      return this.createEl('span', options);
     },
     setCssStyles(this: HTMLElement, styles: Partial<CSSStyleDeclaration>) {
       Object.assign(this.style, styles);
+    },
+    setCssProps(this: HTMLElement, styles: Record<string, string>) {
+      for (const [key, value] of Object.entries(styles)) this.style.setProperty(key, value);
+    },
+    empty(this: HTMLElement) {
+      this.replaceChildren();
     },
   });
   document.body.innerHTML =
@@ -49,6 +65,174 @@ test('visual formatting leaves original cell nodes, content and native event han
   assert.equal(clicks, 1);
   render.dispose();
   assert.equal(table.outerHTML, before);
+});
+
+test('refresh preserves decoration nodes, native width changes, and current focus', () => {
+  const { table, document } = fixture();
+  const rows = [
+      ['A', 'B'],
+      ['1', '3'],
+    ],
+    m = makeMetadata(rows);
+  m.widths[0] = 180;
+  applyFormat(rows, m, { r0: 1, r1: 1, c0: 0, c1: 0 }, 'cell', 'rating', DEFAULTS);
+  const render = decorateTable(table as unknown as HTMLTableElement, rows, m, DEFAULTS);
+  const cell = table.rows[1].cells[0],
+    display = cell.querySelector('.gt-display');
+  const input = document.createElement('input');
+  cell.append(input);
+  input.focus();
+  rows[1][0] = '4';
+  render.update(rows, m, DEFAULTS);
+  assert.equal(cell.querySelector('.gt-display'), display);
+  assert.equal(display?.textContent, '★★★★');
+  assert.equal(cell.style.width, '180px');
+  assert.equal(document.activeElement, input);
+  assert.ok(render.isCurrent());
+  cell.style.width = '210px';
+  render.update(rows, m, DEFAULTS);
+  render.dispose();
+  assert.equal(cell.style.width, '210px', 'Release plugin ownership without undoing native layout');
+});
+
+test('inline diagonal fields survive updates, respect IME, route history and clean up on toggle', () => {
+  const { table, document, window } = fixture();
+  const rows = [
+      ['A', 'B'],
+      ['1', '3'],
+    ],
+    m = makeMetadata(rows);
+  m.diagonal = { lower: 'A', upper: '' };
+  const edits: string[][] = [],
+    history: boolean[] = [];
+  const render = decorateTable(table as unknown as HTMLTableElement, rows, m, DEFAULTS, {
+    label: (key) => key,
+    select: () => {},
+    edit: () => {},
+    resize: () => {},
+    diagonalEdit: (lower, upper) => edits.push([lower, upper]),
+    history: (redo) => history.push(redo),
+  });
+  const lower = document.querySelector(
+    'textarea.gt-diagonal-lower',
+  )! as unknown as import('happy-dom').HTMLTextAreaElement;
+  lower.focus();
+  lower.value = '한글';
+  lower.setSelectionRange(1, 1);
+  lower.dispatchEvent(new window.InputEvent('input', { isComposing: true, bubbles: true }));
+  assert.equal(edits.length, 0);
+  lower.dispatchEvent(new window.CompositionEvent('compositionend', { bubbles: true }));
+  assert.deepEqual(edits, [['한글', '']]);
+  m.diagonal.lower = '한글';
+  render.update(rows, m, DEFAULTS);
+  assert.equal(document.querySelector('textarea.gt-diagonal-lower'), lower);
+  assert.equal(document.activeElement, lower);
+  assert.equal(lower.selectionStart, 1);
+  lower.dispatchEvent(
+    new window.KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true }),
+  );
+  lower.dispatchEvent(
+    new window.KeyboardEvent('keydown', { key: 'z', ctrlKey: true, shiftKey: true, bubbles: true }),
+  );
+  assert.deepEqual(history, [false, true]);
+  delete m.diagonal;
+  render.update(rows, m, DEFAULTS);
+  assert.equal(document.querySelector('.gt-diagonal-overlay'), null);
+  assert.ok(render.isCurrent());
+  m.diagonal = { lower: 'again', upper: '' };
+  render.update(rows, m, DEFAULTS);
+  assert.notEqual(document.querySelector('textarea.gt-diagonal-lower'), lower);
+  assert.ok(render.isCurrent());
+  render.dispose();
+  assert.equal(document.querySelector('textarea'), null);
+});
+
+test('color conversion round trips RGB and visible picker synchronizes hue, surface and HEX', () => {
+  for (const color of ['#ff0000', '#00ff00', '#0000ff', '#ffffff', '#000000', '#729bf5', '#8f9a7b'])
+    assert.equal(hsvToHex(hexToHsv(color)), color);
+  const { document, window } = fixture();
+  const selected: string[] = [];
+  const picker = new ColorPicker(
+    document.body as unknown as HTMLElement,
+    '#ff0000',
+    (value) => selected.push(value),
+    { surface: 'SV', hue: 'Hue' },
+  );
+  Object.defineProperty(picker.surface, 'getBoundingClientRect', {
+    value: () => ({ left: 0, top: 0, width: 100, height: 100 }),
+  });
+  (picker.surface as unknown as import('happy-dom').HTMLElement).dispatchEvent(
+    new window.PointerEvent('pointerdown', { button: 0, clientX: 50, clientY: 50 }),
+  );
+  assert.equal(selected.at(-1), '#804040');
+  picker.hue.value = '120';
+  (picker.hue as unknown as import('happy-dom').HTMLElement).dispatchEvent(
+    new window.Event('input'),
+  );
+  assert.equal(selected.at(-1), '#408040');
+  picker.setColor('#0000ff');
+  assert.equal(picker.hue.value, '240');
+  (picker.surface as unknown as import('happy-dom').HTMLElement).dispatchEvent(
+    new window.KeyboardEvent('keydown', { key: 'ArrowLeft', shiftKey: true }),
+  );
+  assert.equal(selected.at(-1), '#1919ff');
+  assert.equal(document.querySelector('input[type=color]'), null);
+});
+
+test('native table replacement transfers the same diagonal inputs and removes obsolete listeners', () => {
+  const { table, document, window } = fixture();
+  const rows = [
+      ['A', 'B'],
+      ['1', '3'],
+    ],
+    m = makeMetadata(rows);
+  m.diagonal = { lower: 'A', upper: 'B' };
+  let oldEdits = 0,
+    newEdits = 0;
+  const hooks = {
+    label: (key: 'lower' | 'upper' | 'edit') => key,
+    select: () => {},
+    edit: () => {},
+    resize: () => {},
+    diagonalEdit: () => {
+      oldEdits++;
+    },
+  };
+  const original = table.outerHTML;
+  const render = decorateTable(table as unknown as HTMLTableElement, rows, m, DEFAULTS, hooks);
+  const lower = document.querySelector(
+    'textarea.gt-diagonal-lower',
+  )! as unknown as import('happy-dom').HTMLTextAreaElement;
+  lower.focus();
+  lower.setSelectionRange(1, 1);
+  const holder = document.createElement('div');
+  holder.innerHTML = original;
+  const next = holder.querySelector('table')!;
+  table.replaceWith(next);
+  const continuity = render.releaseDiagonal();
+  render.dispose();
+  const replacement = decorateTable(
+    next as unknown as HTMLTableElement,
+    rows,
+    m,
+    DEFAULTS,
+    {
+      ...hooks,
+      diagonalEdit: () => {
+        newEdits++;
+      },
+    },
+    undefined,
+    continuity,
+  );
+  assert.equal(document.querySelector('textarea.gt-diagonal-lower'), lower);
+  assert.equal(lower.selectionStart, 1);
+  lower.dispatchEvent(new window.InputEvent('input', { bubbles: true }));
+  assert.equal(oldEdits, 0);
+  assert.equal(newEdits, 1);
+  assert.ok(replacement.isCurrent());
+  replacement.dispose();
+  assert.equal(document.querySelector('.gt-diagonal-overlay'), null);
 });
 test('merge across Markdown header boundary is drawn without changing native thead/tbody geometry', () => {
   const { table } = fixture();

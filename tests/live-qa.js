@@ -194,11 +194,12 @@
       assert(meta().diagonal, 'Diagonal not enabled');
       await menu({ r0: 0, r1: 0, c0: 0, c1: 0 }, 'cell', 0, 0);
       await click('원본 값 편집');
-      const fields = document.querySelectorAll('.gt-modal textarea');
+      const fields = document.querySelectorAll('.gt-diagonal-overlay textarea');
       assert(fields.length === 2, 'Diagonal inputs missing');
       fields[0].value = '아래';
+      fields[0].dispatchEvent(new InputEvent('input', { bubbles: true }));
       fields[1].value = '위';
-      document.querySelector('.gt-modal .mod-cta').click();
+      fields[1].dispatchEvent(new InputEvent('input', { bubbles: true }));
       await wait();
       assert(
         meta().snapshot[0][0] === '아래위',
@@ -217,8 +218,9 @@
       const picker = document.querySelector('.gt-color-picker');
       assert(picker, 'Color picker missing');
       assert(document.querySelectorAll('.gt-rgb input').length === 3, 'RGB inputs missing');
-      picker.value = '#234567';
-      picker.dispatchEvent(new Event('input', { bubbles: true }));
+      const hex = document.querySelector('.gt-hex input');
+      hex.value = '#234567';
+      hex.dispatchEvent(new Event('input', { bubbles: true }));
       document.querySelector('.gt-modal .mod-cta').click();
       await wait();
       assert(meta().cells[1][2].background === '#234567', 'Color not saved');

@@ -1,5 +1,6 @@
 import { App, Modal, Setting } from 'obsidian';
 import { Message } from './i18n';
+import { ColorPicker } from './color-picker';
 type T = (key: Message) => string;
 export class FormModal extends Modal {
   private apply: () => void = () => {};
@@ -71,7 +72,9 @@ export function confirmModal(app: App, t: T, title: string, text: string, apply:
 }
 export class ColorModal extends Modal {
   private value: string;
-  private picker!: HTMLInputElement;
+  private picker!: ColorPicker;
+  private hex!: HTMLInputElement;
+  private drawPalette: () => void = () => {};
   private rgb: HTMLInputElement[] = [];
   private selected = -1;
   constructor(
@@ -91,9 +94,19 @@ export class ColorModal extends Modal {
   onOpen(): void {
     this.titleEl.setText(this.title);
     this.modalEl.addClass('gt-modal');
-    this.picker = this.contentEl.createEl('input', { type: 'color', cls: 'gt-color-picker' });
-    this.picker.value = this.value;
-    this.picker.oninput = () => this.set(this.picker.value);
+    this.picker = new ColorPicker(this.contentEl, this.value, (value) => this.set(value), {
+      surface: this.t('saturationValue'),
+      hue: this.t('hue'),
+    });
+    const hexLabel = this.contentEl.createEl('label', { cls: 'gt-hex', text: 'HEX' });
+    this.hex = hexLabel.createEl('input', {
+      type: 'text',
+      attr: { 'aria-label': 'HEX', placeholder: '#123456', maxlength: '7' },
+    });
+    this.hex.value = this.value;
+    this.hex.oninput = () => {
+      if (/^#[\da-f]{6}$/i.test(this.hex.value)) this.set(this.hex.value);
+    };
     const row = this.contentEl.createDiv({ cls: 'gt-rgb' });
     this.rgb = ['R', 'G', 'B'].map((label, i) => {
       const wrap = row.createEl('label', { text: label });
@@ -162,6 +175,7 @@ export class ColorModal extends Modal {
         );
       }
     };
+    this.drawPalette = draw;
     draw();
     const actions = this.contentEl.createDiv({ cls: 'gt-actions' });
     actions.createEl('button', { text: this.t('cancel') }).onclick = () => this.close();
@@ -172,12 +186,14 @@ export class ColorModal extends Modal {
       };
     actions.createEl('button', { text: this.t('confirm'), cls: 'mod-cta' }).onclick = () => {
       if (this.rgb.some((v) => !v.checkValidity() || v.value === '')) return;
+      if (!/^#[\da-f]{6}$/i.test(this.hex.value)) {
+        this.hex.focus();
+        return;
+      }
       if (this.manage) this.manage(this.favorites);
       else this.change(this.value);
       this.close();
     };
-    this.picker.addEventListener('input', () => draw());
-    this.rgb.forEach((input) => input.addEventListener('input', () => draw()));
   }
   private swatch(parent: HTMLElement, color: string, select: () => void): void {
     const b = parent.createEl('button', {
@@ -188,12 +204,14 @@ export class ColorModal extends Modal {
     b.onclick = select;
   }
   private set(value: string, updateFavorite = true): void {
-    this.value = value;
-    this.picker.value = value;
+    this.value = value.toLowerCase();
+    this.picker.setColor(this.value);
+    this.hex.value = this.value;
     this.rgb.forEach(
       (input, i) => (input.value = String(parseInt(value.slice(1 + i * 2, 3 + i * 2), 16))),
     );
     if (updateFavorite && this.manage && this.selected >= 0) this.favorites[this.selected] = value;
+    this.drawPalette();
   }
 }
 export class OrderModal extends Modal {

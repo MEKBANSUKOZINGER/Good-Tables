@@ -1,7 +1,7 @@
 import { App, Notice, PluginSettingTab, SettingDefinition, SettingDefinitionItem } from 'obsidian';
 import type GoodTables from './main';
 import { ColorModal, FormModal, OrderModal } from './dialogs';
-import { FormatKind } from './model';
+import { formatMenuOrder, formatMenuLabel, uid } from './model';
 import { Message } from './i18n';
 
 export class GoodTablesSettings extends PluginSettingTab {
@@ -44,8 +44,20 @@ export class GoodTablesSettings extends PluginSettingTab {
       numeric('rows', 'rows', 1, 100),
       numeric('columns', 'columns', 1, 100),
     ];
-    for (const key of ['diagonal', 'fullWidth', 'formatTitles'] as const) {
-      defaults.push({
+    defaults.push({
+      name: t('diagonal'),
+      render: (row) => {
+        row.addToggle((toggle) =>
+          toggle.setValue(p.settings.diagonal).onChange((value) => {
+            p.settings.diagonal = value;
+            save();
+          }),
+        );
+      },
+    });
+    const tableSettings: SettingDefinition[] = [];
+    for (const key of ['fullWidth', 'formatTitles'] as const) {
+      tableSettings.push({
         name: t(key),
         render: (row) => {
           row.addToggle((toggle) =>
@@ -58,11 +70,25 @@ export class GoodTablesSettings extends PluginSettingTab {
       });
     }
     for (const key of ['titleBackground', 'titleColor'] as const) {
-      defaults.push({
+      tableSettings.push({
         name: t(key),
         render: (row) => {
+          row.addText((input) => {
+            input
+              .setPlaceholder(t('theme'))
+              .setValue(p.settings[key])
+              .onChange((value) => {
+                if (value !== '' && !/^#[\da-f]{6}$/i.test(value)) return;
+                p.settings[key] = value.toLowerCase();
+                save();
+              });
+            input.inputEl.setAttribute('aria-label', t(key) + ' HEX');
+            input.inputEl.addEventListener('blur', () => {
+              input.setValue(p.settings[key]);
+            });
+          });
           row.addButton((button) =>
-            button.setButtonText(p.settings[key] || t('theme')).onClick(() => {
+            button.setButtonText(t('pickColor')).onClick(() => {
               new ColorModal(
                 this.app,
                 t,
@@ -80,7 +106,7 @@ export class GoodTablesSettings extends PluginSettingTab {
         },
       });
     }
-    defaults.push(
+    tableSettings.push(
       numeric('decimals', 'decimals', 0, 10),
       numeric('ratingMax', 'ratingMax', 1, 100),
       {
@@ -106,7 +132,7 @@ export class GoodTablesSettings extends PluginSettingTab {
           : key === 'time'
             ? ['HH', 'mm']
             : ['YYYY', 'MM', 'DD', 'HH', 'mm'];
-      defaults.push({
+      tableSettings.push({
         name: t(key),
         desc: tokens.join(', '),
         render: (row) => {
@@ -126,7 +152,7 @@ export class GoodTablesSettings extends PluginSettingTab {
         },
       });
     }
-    defaults.push({
+    tableSettings.push({
       name: t('favorites'),
       render: (row) => {
         row.addButton((button) =>
@@ -149,7 +175,7 @@ export class GoodTablesSettings extends PluginSettingTab {
       },
     });
     for (const key of ['menuOrder', 'formatOrder'] as const) {
-      defaults.push({
+      tableSettings.push({
         name: t(key),
         render: (row) => {
           row.addButton((button) =>
@@ -158,11 +184,14 @@ export class GoodTablesSettings extends PluginSettingTab {
                 this.app,
                 t,
                 t(key),
-                p.settings[key],
-                (id) => t(id as Message),
+                key === 'formatOrder' ? formatMenuOrder(p.settings) : p.settings[key],
+                (id) =>
+                  key === 'formatOrder'
+                    ? formatMenuLabel(id, p.settings, (kind) => t(kind))
+                    : t(id as Message),
                 (order) => {
                   if (key === 'menuOrder') p.settings.menuOrder = order;
-                  else p.settings.formatOrder = order as FormatKind[];
+                  else p.settings.formatOrder = order;
                   save();
                 },
               ).open();
@@ -185,9 +214,15 @@ export class GoodTablesSettings extends PluginSettingTab {
               name.focus();
               return;
             }
-            const preset = { name: name.value.trim(), prefix: prefix.value, suffix: suffix.value };
+            const preset = {
+              id: existing.id ?? uid(),
+              name: name.value.trim(),
+              prefix: prefix.value,
+              suffix: suffix.value,
+            };
             if (index < 0) p.settings.presets.push(preset);
             else p.settings.presets[index] = preset;
+            p.settings.formatOrder = formatMenuOrder(p.settings);
             refresh();
             modal.close();
           };
@@ -203,6 +238,7 @@ export class GoodTablesSettings extends PluginSettingTab {
         row.addButton((button) =>
           button.setButtonText('×').onClick(() => {
             p.settings.presets.splice(index, 1);
+            p.settings.formatOrder = formatMenuOrder(p.settings);
             refresh();
           }),
         );
@@ -231,6 +267,7 @@ export class GoodTablesSettings extends PluginSettingTab {
         },
       },
       { type: 'group', heading: t('defaults'), items: defaults },
+      { type: 'group', heading: t('tableSettings'), items: tableSettings },
       { type: 'group', heading: t('presets'), items: presets },
     ];
   }

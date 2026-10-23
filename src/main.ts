@@ -27,6 +27,7 @@ import {
   positions,
   isTitle,
   makeMetadata,
+  formatMenuOrder,
 } from './model';
 import {
   Table,
@@ -81,10 +82,13 @@ type Mutation = (rows: string[][], m: Metadata, a: Rect) => void;
 interface ContextMenuRequest {
   binding: Binding;
   menu?: Menu;
+  append?: () => void;
+  event?: MouseEvent;
 }
 class Controller {
   bindings: Binding[] = [];
-  private timer: number | undefined;
+  private scheduled = false;
+  private contextTimer: number | undefined;
   private observer: MutationObserver;
   private dragging: { binding: Binding; r: number; c: number } | undefined;
   private dead = false;
@@ -127,10 +131,10 @@ class Controller {
           const target =
             record.target.nodeType === 1 ? (record.target as Element) : record.target.parentElement;
           if (target?.closest('.gt-display,.gt-merge-overlay,.gt-diagonal-overlay')) return false;
-          return [...record.addedNodes, ...record.removedNodes].some(
-            (n) =>
-              n.nodeType === 3 ||
-              (n.nodeType === 1 && !(n as Element).className.toString().startsWith('gt-')),
+          if (record.type === 'childList') return true;
+          return ['gt-table', 'gt-cell'].some(
+            (name) =>
+              record.oldValue?.split(/\s+/).includes(name) && !target?.classList.contains(name),
           );
         })
       )
@@ -220,8 +224,8 @@ class Controller {
     };
     this.context = (e) => {
       const found = this.cell(e.target);
-      this.p.contextBinding = found?.binding;
       if (!found) return;
+      this.p.contextBinding = found.binding;
       const { binding: b, r, c } = found;
       this.rememberMove(b, r, c);
       const target = e.target as Element;
@@ -258,21 +262,35 @@ class Controller {
       }
       this.p.active = b;
       const contextBinding = { ...b, rect: { ...b.rect } };
-      const request: ContextMenuRequest = { binding: contextBinding };
+      const request: ContextMenuRequest = { binding: contextBinding, event: e };
       this.p.contextRequest = request;
       // Let every native handler and editor-menu listener finish first. Reuse
       // that exact event's menu; never replace it with a separate table menu.
-      afterNativeContextMenu(
-        e,
-        () => {
-          if (!this.dead && b.element.isConnected)
-            this.p.menu(request.menu ?? Menu.forEvent(e), b.editor, contextBinding);
-        },
-        () => {
-          if (this.p.contextRequest === request) this.p.contextRequest = undefined;
-          return !!request.menu || e.defaultPrevented;
-        },
-      );
+      const owner = this.view.dom.ownerDocument.defaultView!;
+      owner.clearTimeout(this.contextTimer);
+      request.append = () => {
+        if (this.dead || this.p.contextRequest !== request) return;
+        this.refresh();
+        const current = this.bindings.find((candidate) =>
+          contextBinding.table.metadata?.id
+            ? candidate.table.metadata?.id === contextBinding.table.metadata.id
+            : candidate.table.from === contextBinding.table.from,
+        );
+        if (current)
+          this.p.menu(request.menu ?? Menu.forEvent(e), current.editor, {
+            ...current,
+            rect: contextBinding.rect,
+            axis: contextBinding.axis,
+          });
+        this.p.contextRequest = undefined;
+        owner.clearTimeout(this.contextTimer);
+      };
+      // Focused-cell native menus can await selection updates before firing
+      // editor-menu. Keep this request alive until that event actually arrives.
+      this.contextTimer = owner.setTimeout(() => {
+        if (this.p.contextRequest === request) this.p.contextRequest = undefined;
+      }, 1000);
+      afterNativeContextMenu(e, request.append, () => !!request.menu || e.defaultPrevented);
     };
     this.paste = (e) => {
       const b = this.p.active;
@@ -365,19 +383,21 @@ class Controller {
     }
   }
   schedule(): void {
-    if (this.dead) return;
-    const window = this.view.dom.ownerDocument.defaultView!;
-    window.clearTimeout(this.timer);
-    this.timer = window.setTimeout(() => this.refresh(), 60);
+    if (this.dead || this.scheduled) return;
+    this.scheduled = true;
+    queueMicrotask(() => {
+      this.scheduled = false;
+      if (!this.dead) this.refresh();
+    });
   }
   private cell(target: EventTarget | null): { binding: Binding; r: number; c: number } | undefined {
     const td = (target as Element | null)?.closest?.('td,th') as HTMLTableCellElement | null;
     if (!td) return;
     const binding = this.bindings.find((b) => b.element === td.closest('table'));
     if (!binding) return;
-    const r = Number(td.dataset.gtRow),
-      c = Number(td.dataset.gtCol);
-    if (!Number.isInteger(r) || !Number.isInteger(c)) return;
+    const r = td.closest('tr')?.rowIndex ?? -1,
+      c = td.cellIndex;
+    if (r < 0 || c < 0) return;
     return { binding, r, c };
   }
   private select(b: Binding, a: Rect, axis: Axis): void {
@@ -392,11 +412,8 @@ class Controller {
     this.observer.disconnect();
     const previous = this.bindings;
     this.bindings = [];
-    for (const b of previous) b.decorated.dispose();
     try {
       if (!this.view.state.field(editorLivePreviewField, false)) return;
-      // Hidden extension data can leave the incremental syntax tree behind the
-      // visible viewport. Let the native parser catch up before finding widgets.
       forceParsing(this.view, Math.min(this.view.state.doc.length, this.view.viewport.to + 1), 20);
       const editor = this.view.state.field(editorInfoField, false)?.editor;
       if (!editor) return;
@@ -410,21 +427,32 @@ class Controller {
         } catch {
           continue;
         }
-        const matches = tables.filter((t) => offset >= t.from - 1 && offset <= t.to);
+        const matches = tables.filter((table) => offset >= table.from - 1 && offset <= table.to);
         if (matches.length !== 1) continue;
-        const table = matches[0];
+        const table = matches[0],
+          rows = values(table);
+        if (
+          element.rows.length !== rows.length ||
+          [...element.rows].some((row, r) => row.cells.length !== rows[r].length)
+        )
+          continue;
         let data: Metadata | undefined;
         try {
           data = reconcile(table);
         } catch {
-          /* Preserve stale/invalid data, render native table. */
+          /* Keep invalid metadata and native table content. */
         }
-        const old = previous.find((b) =>
-          table.metadata?.id
-            ? b.table.metadata?.id === table.metadata.id
-            : b.table.from === table.from,
+        const same = previous.find(
+          (binding) => binding.element === element && binding.decorated.isCurrent(),
         );
-        const b: Binding = {
+        const old =
+          same ??
+          previous.find((binding) =>
+            table.metadata?.id
+              ? binding.table.metadata?.id === table.metadata.id
+              : binding.table.from === table.from,
+          );
+        const b: Binding = same ?? {
           element,
           table,
           source,
@@ -434,50 +462,72 @@ class Controller {
           rect: old?.rect ?? { r0: 0, r1: 0, c0: 0, c1: 0 },
           axis: old?.axis ?? 'cell',
           native: old?.native,
-          decorated: { dispose: () => {}, select: () => {}, refreshLayout: () => {} },
+          decorated: {
+            dispose: () => {},
+            select: () => {},
+            refreshLayout: () => {},
+            update: () => {},
+            isCurrent: () => false,
+            focusDiagonal: () => {},
+            releaseDiagonal: () => undefined,
+          },
         };
+        b.table = table;
+        b.source = source;
         try {
-          checkRect(values(table), b.rect);
+          checkRect(rows, b.rect);
         } catch {
           b.rect = { r0: 0, r1: 0, c0: 0, c1: 0 };
           b.axis = 'cell';
         }
-        const component = new Component();
-        component.load();
-        const path = this.view.state.field(editorInfoField, false)?.file?.path ?? '';
-        b.decorated = decorateTable(
-          element,
-          values(table),
-          data,
-          this.p.settings,
-          {
-            label: (key) => this.p.t(key),
-            select: (a, axis, event) => {
-              if (event.shiftKey && this.p.active === b && axis === b.axis) {
-                a = {
-                  r0: Math.min(a.r0, b.rect.r0),
-                  r1: Math.max(a.r1, b.rect.r1),
-                  c0: Math.min(a.c0, b.rect.c0),
-                  c1: Math.max(a.c1, b.rect.c1),
-                };
-              }
-              this.select(b, a, axis);
+        if (same) b.decorated.update(rows, data, this.p.settings);
+        else {
+          const diagonal = data?.diagonal ? old?.decorated.releaseDiagonal() : undefined;
+          old?.decorated.dispose();
+          const path = this.view.state.field(editorInfoField, false)?.file?.path ?? '';
+          b.decorated = decorateTable(
+            element,
+            rows,
+            data,
+            this.p.settings,
+            {
+              label: (key) => this.p.t(key),
+              select: (rect, axis, event) => {
+                if (event.shiftKey && this.p.active === b && axis === b.axis)
+                  rect = {
+                    r0: Math.min(rect.r0, b.rect.r0),
+                    r1: Math.max(rect.r1, b.rect.r1),
+                    c0: Math.min(rect.c0, b.rect.c0),
+                    c1: Math.max(rect.c1, b.rect.c1),
+                  };
+                this.select(b, rect, axis);
+              },
+              edit: (r, c) => this.p.edit(b, r, c),
+              diagonalEdit: (lower, upper) => {
+                this.p.apply(b, (current, metadata) => {
+                  if (!metadata.diagonal) return;
+                  metadata.diagonal = { lower: escapeCell(lower), upper: escapeCell(upper) };
+                  current[0][0] = metadata.diagonal.lower + metadata.diagonal.upper;
+                });
+              },
+              history: (redo) => {
+                if (redo) b.editor.redo();
+                else b.editor.undo();
+              },
+              resize: (axis, index, size) =>
+                this.p.apply(b, (_, metadata) => {
+                  metadata[axis === 'row' ? 'heights' : 'widths'][index] = size;
+                }),
             },
-            edit: (r, c) => this.p.edit(b, r, c),
-            resize: (axis, index, size) =>
-              this.p.apply(b, (_, m) => {
-                m[axis === 'row' ? 'heights' : 'widths'][index] = size;
-              }),
-          },
-          (text, target) => {
-            void MarkdownRenderer.render(this.p.app, text, target, path, component);
-          },
-        );
-        const dispose = b.decorated.dispose;
-        b.decorated.dispose = () => {
-          component.unload();
-          dispose();
-        };
+            (text, target) => {
+              const component = new Component();
+              component.load();
+              void MarkdownRenderer.render(this.p.app, text, target, path, component);
+              return () => component.unload();
+            },
+            diagonal,
+          );
+        }
         this.bindings.push(b);
         if (old && this.p.active === old) {
           this.p.active = b;
@@ -485,13 +535,15 @@ class Controller {
         }
       }
     } finally {
+      for (const old of previous) if (!this.bindings.includes(old)) old.decorated.dispose();
       if (!this.dead) this.observe();
     }
   }
   destroy(): void {
     this.dead = true;
+    this.view.dom.ownerDocument.defaultView?.clearTimeout(this.contextTimer);
+    if (this.p.contextRequest?.binding.controller === this) this.p.contextRequest = undefined;
     this.releaseSelection();
-    this.view.dom.ownerDocument.defaultView!.clearTimeout(this.timer);
     this.observer.disconnect();
     this.nativeIntent = undefined;
     this.bindings.forEach((b) => b.decorated.dispose());
@@ -523,6 +575,8 @@ export default class GoodTables extends Plugin {
   }
   async onload(): Promise<void> {
     this.settings = normalizeSettings(await this.loadData());
+    // Persist IDs once so saved-format menu positions survive later launches.
+    if (this.settings.presets.length) await this.saveData(this.settings);
     this.registerEditorExtension(metadataField);
     this.registerEditorExtension(
       metadataSynchronization((tr) => {
@@ -560,8 +614,11 @@ export default class GoodTables extends Plugin {
     this.registerEvent(
       this.app.workspace.on('editor-menu', (menu, _editor, info) => {
         const request = this.contextRequest;
-        if (request && info.file === request.binding.cm.state.field(editorInfoField, false)?.file)
+        if (request && info.file === request.binding.cm.state.field(editorInfoField, false)?.file) {
           request.menu = menu;
+          if (request.event && request.append)
+            afterNativeContextMenu(request.event, request.append, () => true);
+        }
       }),
     );
     this.registerEvent(this.app.workspace.on('quit', () => (this.quitting = true)));
@@ -624,6 +681,16 @@ export default class GoodTables extends Plugin {
         },
         'good-tables',
       );
+      // Inline fields may dispatch several inputs before the queued view refresh.
+      // Advance the live binding, while menu/modal snapshots retain conflict checks.
+      const currentSource = b.editor.getValue();
+      const currentTable = scanTables(currentSource).find(
+        (candidate) => candidate.metadata?.id === m.id,
+      );
+      if (currentTable) {
+        b.source = currentSource;
+        b.table = currentTable;
+      }
       this.warn();
       b.controller.schedule();
     } catch (error) {
@@ -699,6 +766,10 @@ export default class GoodTables extends Plugin {
         rows = values(table),
         m = reconcile(table),
         t = this.t;
+      if (m.diagonal && r === 0 && c === 0) {
+        b.decorated.focusDiagonal();
+        return;
+      }
       const merge = m.merges.find((a) => r >= a.r0 && r <= a.r1 && c >= a.c0 && c <= a.c1);
       if (merge) {
         r = merge.r0;
@@ -883,9 +954,14 @@ export default class GoodTables extends Plugin {
         );
       } else if (key === 'format')
         this.submenu(menu, t('format'), (sub) => {
-          for (const kind of this.settings.formatOrder) addFormat(sub, kind);
-          if (this.settings.presets.length) sub.addSeparator();
-          for (const preset of this.settings.presets) addFormat(sub, 'custom', preset, preset.name);
+          for (const id of formatMenuOrder(this.settings)) {
+            if (id.startsWith('preset:')) {
+              const preset = this.settings.presets.find(
+                (entry) => `preset:${entry.id ?? ''}` === id,
+              );
+              if (preset) addFormat(sub, 'custom', preset, preset.name);
+            } else addFormat(sub, id as FormatKind);
+          }
         });
       else if (key === 'merge') {
         item(menu, t('merge'), () => act((_, meta, a) => mergeCells(meta, a)));
@@ -1048,14 +1124,14 @@ export default class GoodTables extends Plugin {
       const table = matches.length === 1 ? matches[0] : matches[sectionTables.indexOf(element)];
       if (!table) continue;
       let rendered: Decorated | undefined;
-      let component: Component | undefined;
       const entry = {
         refresh: () => {
-          rendered?.dispose();
-          component?.unload();
-          component = new Component();
-          component.load();
           try {
+            if (rendered?.isCurrent()) {
+              rendered.update(values(table), reconcile(table), this.settings);
+              return;
+            }
+            rendered?.dispose();
             rendered = decorateTable(
               element,
               values(table),
@@ -1063,7 +1139,10 @@ export default class GoodTables extends Plugin {
               this.settings,
               undefined,
               (text, target) => {
-                void MarkdownRenderer.render(this.app, text, target, ctx.sourcePath, component!);
+                const component = new Component();
+                component.load();
+                void MarkdownRenderer.render(this.app, text, target, ctx.sourcePath, component);
+                return () => component.unload();
               },
             );
           } catch {
@@ -1072,7 +1151,6 @@ export default class GoodTables extends Plugin {
         },
         dispose: () => {
           rendered?.dispose();
-          component?.unload();
           this.readings.delete(entry);
         },
       };

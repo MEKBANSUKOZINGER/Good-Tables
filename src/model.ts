@@ -49,9 +49,9 @@ export interface Settings {
   formatTitles: boolean;
   barLabel: 'value' | 'percent';
   favorites: string[];
-  presets: { name: string; prefix: string; suffix: string }[];
+  presets: { id?: string; name: string; prefix: string; suffix: string }[];
   menuOrder: string[];
-  formatOrder: FormatKind[];
+  formatOrder: string[];
   warned: boolean;
 }
 export const FORMAT_ORDER: FormatKind[] = [
@@ -174,9 +174,31 @@ export function normalizeSettings(raw: unknown): Settings {
           typeof v.suffix === 'string',
       )
     : [];
+  const presetIds = new Set<string>();
+  s.presets = s.presets.map((preset) => {
+    let id = preset.id;
+    if (!id || !/^[\da-f-]{36}$/i.test(id) || presetIds.has(id)) id = uid();
+    presetIds.add(id);
+    return { ...preset, id };
+  });
   s.menuOrder = ordered(s.menuOrder, MENU_ORDER);
-  s.formatOrder = ordered(s.formatOrder, FORMAT_ORDER);
+  s.formatOrder = formatMenuOrder(s);
   return s;
+}
+export function formatMenuOrder(settings: Pick<Settings, 'presets' | 'formatOrder'>): string[] {
+  return ordered(settings.formatOrder, [
+    ...FORMAT_ORDER,
+    ...settings.presets.map((preset) => `preset:${preset.id ?? ''}`),
+  ]);
+}
+export function formatMenuLabel(
+  id: string,
+  settings: Settings,
+  label: (kind: FormatKind) => string,
+): string {
+  return id.startsWith('preset:')
+    ? (settings.presets.find((preset) => `preset:${preset.id}` === id)?.name ?? '')
+    : label(id as FormatKind);
 }
 function ordered<T extends string>(input: unknown, defaults: readonly T[]): T[] {
   return [

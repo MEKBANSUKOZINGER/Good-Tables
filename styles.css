@@ -107,6 +107,26 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+.gt-diagonal-overlay textarea.gt-diagonal-input {
+  width: calc(50% - 14px);
+  min-width: 0;
+  min-height: 1.5em;
+  max-height: calc(100% - 16px);
+  padding: 0;
+  margin: 0;
+  resize: none;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: 1.5;
+  box-shadow: none;
+}
+.gt-diagonal-overlay textarea.gt-diagonal-input:focus-visible {
+  outline: 1px solid var(--interactive-accent);
+  outline-offset: 2px;
+}
 .gt-modal {
   max-width: 520px;
 }
@@ -132,12 +152,68 @@
   gap: 10px;
   margin-top: 22px;
 }
-.gt-modal input[type='color'].gt-color-picker {
+.gt-color-picker {
   width: 100%;
-  height: 130px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.gt-color-surface {
+  position: relative;
+  height: 220px;
+  border-radius: 4px;
+  background:
+    linear-gradient(to top, #000, transparent), linear-gradient(to right, #fff, transparent),
+    var(--gt-picker-hue);
+  cursor: crosshair;
+  touch-action: none;
+}
+.gt-color-surface:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 3px;
+}
+.gt-color-thumb {
+  position: absolute;
+  left: var(--gt-picker-x);
+  top: var(--gt-picker-y);
+  width: 22px;
+  height: 22px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 1px 1px #0006;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.gt-modal input[type='range'].gt-hue-strip {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 14px;
+  margin: 0 0 6px;
   padding: 0;
   border: 0;
+  border-radius: 7px;
+  background: linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00);
   cursor: pointer;
+}
+.gt-modal input[type='range'].gt-hue-strip::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  background: var(--gt-picker-hue);
+  box-shadow: 0 0 1px 1px #0006;
+}
+.gt-hex {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 18px;
+}
+.gt-hex input {
+  width: 120px;
 }
 .gt-rgb {
   display: flex;

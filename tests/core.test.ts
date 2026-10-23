@@ -1,6 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { DEFAULTS, makeMetadata, normalizeSettings } from '../src/model';
+import {
+  DEFAULTS,
+  makeMetadata,
+  normalizeSettings,
+  formatMenuOrder,
+  formatMenuLabel,
+} from '../src/model';
 import {
   escapeCell,
   metadataBlock,
@@ -591,4 +597,30 @@ test('column insertion and deletion preserve native alignment of the original co
     nm = reconcile(next);
   structure(nr, nm, 'column', 1, 'delete');
   assert.deepEqual(scanTables(serializeEdit(next, nr, nm))[0].divider.values, ['---', '---:']);
+});
+
+test('saved-format IDs migrate once and menu order survives rename, removal and new presets', () => {
+  const settings = normalizeSettings({
+    presets: [
+      { name: 'USD', prefix: '$', suffix: '' },
+      { name: 'kg', prefix: '', suffix: ' kg' },
+    ],
+  });
+  const [first, second] = settings.presets;
+  assert.ok(first.id && second.id && first.id !== second.id);
+  const firstKey = `preset:${first.id}`,
+    secondKey = `preset:${second.id}`;
+  settings.formatOrder = [secondKey, 'rating', firstKey];
+  const normalized = normalizeSettings(JSON.parse(JSON.stringify(settings)));
+  assert.equal(normalized.presets[0].id, first.id);
+  assert.deepEqual(normalized.formatOrder.slice(0, 3), [secondKey, 'rating', firstKey]);
+  normalized.presets[0].name = 'Dollars';
+  assert.equal(
+    formatMenuLabel(firstKey, normalized, (kind) => kind),
+    'Dollars',
+  );
+  normalized.presets.splice(1, 1);
+  assert.ok(!formatMenuOrder(normalized).includes(secondKey));
+  const repeated = normalizeSettings({ presets: [first, first] });
+  assert.notEqual(repeated.presets[0].id, repeated.presets[1].id);
 });
