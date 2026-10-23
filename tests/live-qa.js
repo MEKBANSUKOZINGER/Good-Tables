@@ -148,11 +148,11 @@
       await wait();
       assert(view.editor.getValue() === before, 'Redo did not restore exact source');
     });
-    await test('same format toggles off and selecting another format is blocked', async () => {
+    await test('same format toggles off and inapplicable overlapping formats stay hidden', async () => {
       const before = view.editor.getValue();
       await menu({ r0: 0, r1: 3, c0: 1, c1: 1 }, 'column', 1, 1);
       await click('서식 설정');
-      await click('별점');
+      assert(!titles().includes('별점'), 'Inapplicable rating menu should be hidden');
       assert(view.editor.getValue() === before, 'Overlapping format changed source');
       await menu({ r0: 0, r1: 3, c0: 1, c1: 1 }, 'column', 1, 1);
       await click('서식 설정');
@@ -230,9 +230,9 @@
       );
     });
     await test('row insertion preserves original cells and title information', async () => {
-      await menu({ r0: 2, r1: 2, c0: 0, c1: 2 }, 'row', 2, 0);
-      await click('행·열 편집');
-      await click('위에 행 추가');
+      closeMenus();
+      view.editor.replaceRange('|  |  |  |\n', { line: binding().table.line + 3, ch: 0 });
+      await wait();
       assert(binding().element.rows.length === 5, 'Inserted row missing');
       assert(meta().snapshot[3][0] === 'B', 'Original row displaced incorrectly');
       assert(meta().headerRows.includes(0), 'Title changed');

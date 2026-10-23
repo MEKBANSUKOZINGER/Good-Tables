@@ -47,6 +47,11 @@
       input.dispatchEvent(new window.Event('input', { bubbles: true }));
       await wait();
       assert(p.settings[key] === '#abcdef', 'Title color HEX did not save');
+      assert(
+        row(p.t(key)).querySelector('.gt-setting-color-preview')?.style.backgroundColor ===
+          'rgb(171, 205, 239)',
+        'Visible title color preview did not update',
+      );
       input.value = '#invalid';
       input.dispatchEvent(new window.Event('input', { bubbles: true }));
       assert(p.settings[key] === '#abcdef', 'Invalid title HEX saved');
@@ -113,6 +118,13 @@
       el.textContent.includes('QA saved format'),
     );
     assert(item, 'Saved format missing from order dialog');
+    const fixed = order.querySelector('.gt-order-item:last-child');
+    assert(
+      fixed.textContent.includes(p.t('custom')) &&
+        fixed.draggable === false &&
+        [...fixed.querySelectorAll('button')].every((button) => button.disabled),
+      'Custom order row must remain fixed at the bottom',
+    );
     const previous = p.settings.formatOrder.indexOf(`preset:${created.id}`);
     item.querySelector('button').click();
     order.querySelector('.mod-cta').click();
@@ -121,6 +133,7 @@
       p.settings.formatOrder.indexOf(`preset:${created.id}`) === previous - 1,
       'Saved format order did not change',
     );
+    assert(p.settings.formatOrder.at(-1) === 'custom', 'Custom format must remain last');
     results.push('adding a saved format creates an independently reorderable menu item');
 
     p.settings.favorites = ['#123456'];
@@ -132,6 +145,15 @@
     const modal =
       document.querySelector('.gt-modal') ?? globalThis.document.querySelector('.gt-modal');
     assert(modal, 'Color dialog missing');
+    modal.querySelector('.gt-swatch').click();
+    const selected = modal.querySelector('.gt-swatch.is-selected[aria-pressed=true]');
+    assert(
+      selected &&
+        modal.querySelector('.gt-color-preview-card:last-child .gt-color-preview-swatch')?.style
+          .backgroundColor === 'rgb(18, 52, 86)',
+      'Favorite selection or chosen-color preview missing',
+    );
+    results.push('favorite editor marks the selected color and displays a live preview');
     assert(
       window.getComputedStyle(modal.querySelector('.gt-color-surface')).height === '220px' &&
         modal.querySelector('.gt-hue-strip[type=range]'),

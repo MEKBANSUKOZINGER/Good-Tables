@@ -74,6 +74,8 @@ export class ColorModal extends Modal {
   private value: string;
   private picker!: ColorPicker;
   private hex!: HTMLInputElement;
+  private preview!: HTMLElement;
+  private previewHex!: HTMLElement;
   private drawPalette: () => void = () => {};
   private rgb: HTMLInputElement[] = [];
   private selected = -1;
@@ -81,14 +83,14 @@ export class ColorModal extends Modal {
     app: App,
     private t: T,
     private title: string,
-    initial: string,
+    private initial: string | null,
     private used: string[],
     private favorites: string[],
     private change: (color: string | null) => void,
     private manage?: (colors: string[]) => void,
   ) {
     super(app);
-    this.value = /^#[\da-f]{6}$/i.test(initial) ? initial : '#729bf5';
+    this.value = initial && /^#[\da-f]{6}$/i.test(initial) ? initial : '#729bf5';
     this.favorites = [...favorites];
   }
   onOpen(): void {
@@ -98,7 +100,22 @@ export class ColorModal extends Modal {
       surface: this.t('saturationValue'),
       hue: this.t('hue'),
     });
-    const hexLabel = this.contentEl.createEl('label', { cls: 'gt-hex', text: 'HEX' });
+    const comparison = this.contentEl.createDiv({ cls: 'gt-color-comparison' });
+    const original = comparison.createDiv({ cls: 'gt-color-preview-card' });
+    original.createSpan({ text: this.t('currentColor') });
+    const originalSwatch = original.createDiv({ cls: 'gt-color-preview-swatch' });
+    if (this.initial) originalSwatch.setCssStyles({ backgroundColor: this.initial });
+    original.createSpan({
+      text: this.initial === null ? this.t('mixedColors') : this.initial || this.t('theme'),
+    });
+    const chosen = comparison.createDiv({ cls: 'gt-color-preview-card' });
+    chosen.createSpan({ text: this.t('selectedColor') });
+    this.preview = chosen.createDiv({ cls: 'gt-color-preview-swatch' });
+    this.previewHex = chosen.createSpan();
+    this.updatePreview();
+    const inputs = this.contentEl.createDiv({ cls: 'gt-color-inputs' });
+    const row = inputs.createDiv({ cls: 'gt-rgb' });
+    const hexLabel = inputs.createEl('label', { cls: 'gt-hex', text: 'HEX' });
     this.hex = hexLabel.createEl('input', {
       type: 'text',
       attr: { 'aria-label': 'HEX', placeholder: '#123456', maxlength: '7' },
@@ -107,7 +124,6 @@ export class ColorModal extends Modal {
     this.hex.oninput = () => {
       if (/^#[\da-f]{6}$/i.test(this.hex.value)) this.set(this.hex.value);
     };
-    const row = this.contentEl.createDiv({ cls: 'gt-rgb' });
     this.rgb = ['R', 'G', 'B'].map((label, i) => {
       const wrap = row.createEl('label', { text: label });
       const input = wrap.createEl('input', { type: 'number' });
@@ -133,14 +149,18 @@ export class ColorModal extends Modal {
     const palette = this.contentEl.createDiv({ cls: 'gt-palette-wrap' });
     const draw = () => {
       palette.empty();
-      palette.createEl('p', { text: this.t('favorites') });
+      if (!this.manage) palette.createEl('p', { text: this.t('favorites') });
       const favorites = palette.createDiv({ cls: 'gt-swatches' });
       this.favorites.forEach((color, i) => {
         const wrap = favorites.createDiv({ cls: 'gt-swatch-wrap' });
-        this.swatch(wrap, color, () => {
+        const swatch = this.swatch(wrap, color, () => {
           this.selected = this.manage ? i : -1;
           this.set(color, false);
         });
+        if (this.manage) {
+          swatch.classList.toggle('is-selected', this.selected === i);
+          swatch.setAttribute('aria-pressed', String(this.selected === i));
+        }
         if (this.manage) {
           const remove = wrap.createEl('button', {
             text: '×',
@@ -195,23 +215,30 @@ export class ColorModal extends Modal {
       this.close();
     };
   }
-  private swatch(parent: HTMLElement, color: string, select: () => void): void {
+  private swatch(parent: HTMLElement, color: string, select: () => void): HTMLButtonElement {
     const b = parent.createEl('button', {
       cls: 'gt-swatch',
       attr: { 'aria-label': color, title: color },
     });
     b.style.backgroundColor = color;
     b.onclick = select;
+    return b;
   }
   private set(value: string, updateFavorite = true): void {
     this.value = value.toLowerCase();
     this.picker.setColor(this.value);
     this.hex.value = this.value;
+    this.updatePreview();
     this.rgb.forEach(
       (input, i) => (input.value = String(parseInt(value.slice(1 + i * 2, 3 + i * 2), 16))),
     );
     if (updateFavorite && this.manage && this.selected >= 0) this.favorites[this.selected] = value;
     this.drawPalette();
+  }
+  private updatePreview(): void {
+    this.preview.setCssStyles({ backgroundColor: this.value });
+    this.preview.setAttribute('aria-label', this.t('selectedColor') + ' ' + this.value);
+    this.previewHex.textContent = this.value;
   }
 }
 export class OrderModal extends Modal {
@@ -222,6 +249,7 @@ export class OrderModal extends Modal {
     private items: string[],
     private label: (id: string) => string,
     private save: (items: string[]) => void,
+    private fixedLast?: string,
   ) {
     super(app);
     this.items = [...items];
@@ -232,6 +260,7 @@ export class OrderModal extends Modal {
     const list = this.contentEl.createDiv();
     let source = -1;
     const move = (from: number, to: number) => {
+      if (this.items[from] === this.fixedLast || this.items[to] === this.fixedLast) return;
       const [item] = this.items.splice(from, 1);
       this.items.splice(to, 0, item);
       draw();
@@ -240,6 +269,8 @@ export class OrderModal extends Modal {
       list.empty();
       this.items.forEach((id, i) => {
         const row = list.createDiv({ cls: 'gt-order-item', attr: { draggable: 'true' } });
+        const fixed = id === this.fixedLast;
+        if (fixed) row.draggable = false;
         row.createSpan({ text: '⠿ ' + this.label(id) });
         row.ondragstart = () => (source = i);
         row.ondragover = (e) => e.preventDefault();
@@ -249,10 +280,11 @@ export class OrderModal extends Modal {
           source = -1;
         };
         const up = row.createEl('button', { text: '↑', attr: { 'aria-label': 'Move up' } });
-        up.disabled = i === 0;
+        up.disabled = i === 0 || fixed;
         up.onclick = () => move(i, i - 1);
         const down = row.createEl('button', { text: '↓', attr: { 'aria-label': 'Move down' } });
-        down.disabled = i === this.items.length - 1;
+        down.disabled =
+          i === this.items.length - 1 || fixed || this.items[i + 1] === this.fixedLast;
         down.onclick = () => move(i, i + 1);
       });
     };

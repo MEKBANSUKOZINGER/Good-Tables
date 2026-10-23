@@ -73,6 +73,17 @@ export class GoodTablesSettings extends PluginSettingTab {
       tableSettings.push({
         name: t(key),
         render: (row) => {
+          const preview = row.controlEl.createSpan({ cls: 'gt-setting-color-preview' });
+          const showColor = () => {
+            preview.setCssStyles({
+              backgroundColor:
+                p.settings[key] ||
+                (key === 'titleBackground' ? 'var(--background-secondary)' : 'var(--text-normal)'),
+            });
+            preview.setAttribute('aria-label', t(key) + ' ' + (p.settings[key] || t('theme')));
+            preview.setAttribute('title', p.settings[key] || t('theme'));
+          };
+          showColor();
           row.addText((input) => {
             input
               .setPlaceholder(t('theme'))
@@ -80,6 +91,7 @@ export class GoodTablesSettings extends PluginSettingTab {
               .onChange((value) => {
                 if (value !== '' && !/^#[\da-f]{6}$/i.test(value)) return;
                 p.settings[key] = value.toLowerCase();
+                showColor();
                 save();
               });
             input.inputEl.setAttribute('aria-label', t(key) + ' HEX');
@@ -194,6 +206,7 @@ export class GoodTablesSettings extends PluginSettingTab {
                   else p.settings.formatOrder = order;
                   save();
                 },
+                key === 'formatOrder' ? 'custom' : undefined,
               ).open();
             }),
           );

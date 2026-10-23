@@ -64,16 +64,7 @@ export const FORMAT_ORDER: FormatKind[] = [
   'rating',
   'custom',
 ];
-export const MENU_ORDER = [
-  'diagonal',
-  'title',
-  'format',
-  'merge',
-  'background',
-  'color',
-  'structure',
-  'size',
-];
+export const MENU_ORDER = ['diagonal', 'title', 'format', 'merge', 'background', 'color'];
 export const DEFAULTS: Settings = {
   language: 'auto',
   rows: 3,
@@ -186,10 +177,13 @@ export function normalizeSettings(raw: unknown): Settings {
   return s;
 }
 export function formatMenuOrder(settings: Pick<Settings, 'presets' | 'formatOrder'>): string[] {
-  return ordered(settings.formatOrder, [
-    ...FORMAT_ORDER,
-    ...settings.presets.map((preset) => `preset:${preset.id ?? ''}`),
-  ]);
+  return [
+    ...ordered(settings.formatOrder, [
+      ...FORMAT_ORDER,
+      ...settings.presets.map((preset) => `preset:${preset.id ?? ''}`),
+    ]).filter((id) => id !== 'custom'),
+    'custom',
+  ];
 }
 export function formatMenuLabel(
   id: string,

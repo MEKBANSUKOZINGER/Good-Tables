@@ -8,7 +8,6 @@ export interface RenderHooks {
   edit: (r: number, c: number) => void;
   diagonalEdit?: (lower: string, upper: string) => void;
   history?: (redo: boolean) => void;
-  resize: (axis: 'row' | 'column', index: number, size: number) => void;
 }
 export interface Decorated {
   dispose: () => void;
@@ -101,40 +100,6 @@ export function decorateTable(
       cell.classList.add('gt-cell');
       cell.dataset.gtRow = String(r);
       cell.dataset.gtCol = String(c);
-      if (hooks && (r === 0 || c === 0)) {
-        for (const axis of [
-          ...(r === 0 ? (['column'] as const) : []),
-          ...(c === 0 ? (['row'] as const) : []),
-        ]) {
-          const handle = track(cell.createSpan({ cls: `gt-resize-${axis}` }));
-          listen(handle, 'pointerdown', ((event: PointerEvent) => {
-            event.preventDefault();
-            event.stopPropagation();
-            const start = axis === 'column' ? event.clientX : event.clientY;
-            const rect = cell.getBoundingClientRect(),
-              size = axis === 'column' ? rect.width : rect.height;
-            const finish = (end: PointerEvent) => {
-              stop();
-              hooks.resize(
-                axis,
-                axis === 'column' ? c : r,
-                Math.round(
-                  Math.max(
-                    24,
-                    Math.min(4000, size + (axis === 'column' ? end.clientX : end.clientY) - start),
-                  ),
-                ),
-              );
-            };
-            document.addEventListener('pointerup', finish, { once: true });
-            const stop = () => {
-              document.removeEventListener('pointerup', finish);
-              disposers.delete(stop);
-            };
-            disposers.add(stop);
-          }) as EventListener);
-        }
-      }
     }
   table.classList.add('gt-table');
   if (parent) {
@@ -428,6 +393,11 @@ export function decorateTable(
         const wanted: Record<string, string> = {};
         const meta = data?.cells[r]?.[c],
           title = !!data && isTitle(data, r, c);
+        cell.classList.toggle(
+          'gt-colored-background',
+          !!(title ? settings.titleBackground : meta?.background),
+        );
+        cell.classList.toggle('gt-colored-text', !!(title ? settings.titleColor : meta?.color));
         cell.classList.toggle('gt-title', title);
         const background = title
           ? settings.titleBackground || 'var(--background-secondary)'
@@ -573,7 +543,14 @@ export function decorateTable(
       for (const element of added) element.remove();
       for (const [cell, state] of originals) {
         applyStyles(cell, {});
-        restoreClasses(cell, state.className, ['gt-cell', 'gt-title', 'gt-editing', 'gt-selected']);
+        restoreClasses(cell, state.className, [
+          'gt-cell',
+          'gt-title',
+          'gt-editing',
+          'gt-selected',
+          'gt-colored-background',
+          'gt-colored-text',
+        ]);
         delete cell.dataset.gtRow;
         delete cell.dataset.gtCol;
       }

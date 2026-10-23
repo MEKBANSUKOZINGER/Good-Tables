@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.2.1 — 2026-10-23
+
+- Place HEX beside RGB in one compact input row to reduce color-dialog height.
+
+- Restore colors immediately when native cell focus removes inline styles, and keep colors visible inside the native cell editor.
+- Remove redundant Good Tables row/column and cell-size commands, their order settings, and extra resize handles. Retain existing stored dimensions and native table tools.
+- Hide actions that cannot run on the selection, including invalid merge/diagonal/title actions, overlapping formats, and unsupported paste into merges.
+- Highlight the favorite color being edited and show current/selected color previews, including mixed-color selections.
+- Show title background/text colors directly in settings beside their HEX fields.
+- Keep the general Custom format entry fixed below built-in and saved formats in both menus and order settings.
+
+Validation: 54 automated tests and 57 live-app QA scenarios passed on Obsidian 1.14.5.
+
 ## 0.2.0 — 2026-10-23
 
 - Reuse table decoration and coalesce refreshes before paint to prevent temporary loss of dimensions and formatting during edits and native row/column moves.

@@ -2,7 +2,7 @@
 
 Good Tables adds presentation and editing tools to Obsidian's native Markdown tables. It supports existing tables without replacing the native table editor.
 
-Desktop only. Version **0.2.0** requires Obsidian **1.14.4 or later**. [한국어 안내](README.ko.md) · [Changelog](CHANGELOG.md).
+Desktop only. Version **0.2.1** requires Obsidian **1.14.4 or later**. [한국어 안내](README.ko.md) · [Changelog](CHANGELOG.md).
 
 ## Features
 
@@ -13,11 +13,15 @@ Desktop only. Version **0.2.0** requires Obsidian **1.14.4 or later**. [한국�
 - Choose background and text colors from a visible saturation/brightness surface and hue strip, with synchronized HEX/RGB fields, document colors, and six shared favorite colors. Saved custom formats appear individually in the format menu and its order settings.
 - Merge a rectangular range while retaining every original cell. Unmerge to restore hidden contents and styles. Double-click a merged cell to edit its anchor.
 - Split the first cell diagonally and type directly into its lower-left and upper-right fields, including multiple lines. Turning the diagonal off concatenates the lower and upper values without a space.
-- Add/delete rows and columns, resize them by dragging edges or entering sizes, and paste tab-separated cell ranges.
+- Use Obsidian's native row/column tools and paste tab-separated cell ranges.
 - Undo and redo document edits using Obsidian's history. Settings update existing tables immediately.
 - Follow Obsidian's English/Korean language, or override it in settings. Other languages fall back to English.
 
 Good Tables preserves the native menu for selected ranges, ordinary cells and focused cell editors, then appends its own entries after a separator. Native formatting, alignment, clipboard actions and other plugins' entries keep their order. Native table clipboard data is handled by Obsidian.
+
+Only applicable Good Tables actions appear for the current selection. For example, a single cell has no Merge command, and Diagonal first cell appears only on the first corner cell. Saved formats can be reordered individually; the general **Custom** entry remains last. Redundant Good Tables row/column and cell-size controls have been removed; previously stored dimensions remain compatible.
+
+Version 0.2.1 restores cell colors when the native editor clears inline styles on focus. The color dialog compares the current and selected colors, highlights the favorite being edited, and identifies mixed-color selections. Title background/text settings show their colors directly beside the HEX fields.
 
 Version 0.1.3 synchronizes formatting metadata within native editing transactions. Consecutive row/column moves carry formats, colors, dimensions and title assignments, and native undo/redo restores them together. Observed native movement disambiguates identical rows and blank columns. A move that splits a merge unmerges only that region; moving the diagonal cell away from the first corner clears its first-cell-only diagonal display while preserving its raw text and styles.
 
@@ -25,7 +29,7 @@ Version 0.2.0 reuses table decoration across updates and applies changes before 
 
 ## Install
 
-Download `main.js`, `manifest.json`, and `styles.css` from a [GitHub release](https://github.com/MEKBANSUKOZINGER/Good-Tables/releases), or build them locally. Copy all three files into `<vault>/.obsidian/plugins/good-tables/`. Reload Obsidian and enable **Good Tables** in Community plugins. The optional `good-tables-0.2.0.zip` contains the same files inside a `good-tables/` folder; GitHub's automatic source archives require building first.
+Download `main.js`, `manifest.json`, and `styles.css` from a [GitHub release](https://github.com/MEKBANSUKOZINGER/Good-Tables/releases), or build them locally. Copy all three files into `<vault>/.obsidian/plugins/good-tables/`. Reload Obsidian and enable **Good Tables** in Community plugins. The optional `good-tables-0.2.1.zip` contains the same files inside a `good-tables/` folder; GitHub's automatic source archives require building first.
 
 The creation command is **Good Tables: Create table**. Assign its hotkey in Obsidian's Hotkeys settings. No hotkey is assigned automatically.
 
@@ -73,7 +77,7 @@ For optional live QA, generate the `qa-vault/Good Tables QA.md` note with `node 
 node scripts/obsidian-cli.mjs "<vault-name>" eval tests/live-qa.js
 ```
 
-The live QA script intentionally resets and edits only that generated QA note. It requires Obsidian's enabled official CLI. On nonstandard installations, set `OBSIDIAN_CLI` to the CLI executable path. The additional `tests/focus-qa.js`, `tests/native-qa.js`, `tests/movement-qa.js`, `tests/settings-qa.js`, and `tests/stability-qa.js` scripts use the same generated QA note; open it before running each script. The CLI wrapper targets Windows installations.
+The live QA script intentionally resets and edits only that generated QA note. It requires Obsidian's enabled official CLI. On nonstandard installations, set `OBSIDIAN_CLI` to the CLI executable path. The additional `tests/focus-qa.js`, `tests/native-qa.js`, `tests/movement-qa.js`, `tests/settings-qa.js`, `tests/stability-qa.js`, and `tests/menu-color-qa.js` scripts use the same generated QA note; open it before running each script. The CLI wrapper targets Windows installations.
 
 No user notes, development profiles, dependency directories, or local plugin settings belong in a GitHub release.
 

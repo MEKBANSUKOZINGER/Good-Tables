@@ -1,4 +1,5 @@
 import { test } from 'node:test';
+import { canFormat, selectionActions } from '../src/menu-state';
 import assert from 'node:assert/strict';
 import {
   DEFAULTS,
@@ -623,4 +624,62 @@ test('saved-format IDs migrate once and menu order survives rename, removal and 
   assert.ok(!formatMenuOrder(normalized).includes(secondKey));
   const repeated = normalizeSettings({ presets: [first, first] });
   assert.notEqual(repeated.presets[0].id, repeated.presets[1].id);
+});
+
+test('context actions hide invalid scopes, title crossings, merged paste and redundant controls', () => {
+  const rows = [
+      ['A', 'B'],
+      ['1', '2'],
+      ['3', '4'],
+    ],
+    m = makeMetadata(rows);
+  const one = { r0: 1, r1: 1, c0: 0, c1: 0 },
+    first = { r0: 0, r1: 0, c0: 0, c1: 0 };
+  assert.equal(selectionActions(rows, m, one, 'cell', DEFAULTS).merge, false);
+  assert.equal(selectionActions(rows, m, one, 'cell', DEFAULTS).diagonal, false);
+  assert.equal(selectionActions(rows, m, first, 'cell', DEFAULTS).diagonal, true);
+  assert.equal(selectionActions(rows, m, one, 'cell', DEFAULTS).title, false);
+  m.headerRows = [0];
+  assert.equal(selectionActions(rows, m, first, 'cell', DEFAULTS).color, false);
+  assert.equal(
+    selectionActions(rows, m, { r0: 0, r1: 1, c0: 0, c1: 0 }, 'cell', DEFAULTS).merge,
+    false,
+  );
+  m.headerRows = [];
+  m.merges = [{ r0: 0, r1: 1, c0: 0, c1: 0 }];
+  const actions = selectionActions(rows, m, first, 'cell', DEFAULTS);
+  assert.equal(actions.diagonal, false);
+  assert.equal(actions.unmerge, true);
+  assert.equal(actions.paste, false);
+  assert.equal(
+    selectionActions(rows, m, { r0: 0, r1: 0, c0: 0, c1: 1 }, 'row', DEFAULTS).title,
+    false,
+  );
+  const settings = normalizeSettings({
+    menuOrder: ['structure', 'size', 'format'],
+    formatOrder: ['custom', 'rating'],
+  });
+  assert.ok(!settings.menuOrder.includes('structure') && !settings.menuOrder.includes('size'));
+  assert.equal(formatMenuOrder(settings).at(-1), 'custom');
+});
+
+test('format availability mirrors overlap, title, negative and remove-format rules', () => {
+  const rows = [
+      ['A', 'B'],
+      ['-1', '2'],
+    ],
+    m = makeMetadata(rows),
+    rect = { r0: 1, r1: 1, c0: 0, c1: 1 };
+  assert.equal(canFormat(rows, m, rect, 'percent', DEFAULTS), false);
+  assert.equal(canFormat(rows, m, rect, 'bar', DEFAULTS), true);
+  applyFormat(rows, m, rect, 'row', 'rating', DEFAULTS);
+  assert.equal(canFormat(rows, m, rect, 'rating', DEFAULTS), true);
+  assert.equal(canFormat(rows, m, rect, 'bar', DEFAULTS), false);
+  delete m.cells[1][1].format;
+  assert.equal(canFormat(rows, m, rect, 'rating', DEFAULTS), false);
+  delete m.cells[1][0].format;
+  applyFormat(rows, m, rect, 'row', 'custom', DEFAULTS, { prefix: '$', suffix: '' });
+  assert.equal(canFormat(rows, m, rect, 'custom', DEFAULTS, { prefix: '$', suffix: '' }), true);
+  assert.equal(canFormat(rows, m, rect, 'custom', DEFAULTS, { prefix: '', suffix: 'kg' }), false);
+  assert.equal(canFormat(rows, m, rect, 'custom', DEFAULTS), true);
 });

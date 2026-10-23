@@ -46,7 +46,6 @@ import {
   editCell,
   mergeCells,
   pasteCells,
-  structure,
   toggleDiagonal,
   toggleTitle,
   unmergeCells,
@@ -55,6 +54,7 @@ import { Message, translator } from './i18n';
 import { ColorModal, FormModal, confirmModal } from './dialogs';
 import { Decorated, decorateTable } from './render';
 import { GoodTablesSettings } from './settings';
+import { canFormat, selectionActions } from './menu-state';
 import { metadataField } from './metadata-view';
 import { closeSubmenuOnExit, watchSelectionBoundary } from './interactions';
 import {
@@ -132,6 +132,7 @@ class Controller {
             record.target.nodeType === 1 ? (record.target as Element) : record.target.parentElement;
           if (target?.closest('.gt-display,.gt-merge-overlay,.gt-diagonal-overlay')) return false;
           if (record.type === 'childList') return true;
+          if (record.attributeName === 'style') return !!target?.matches('.gt-cell,.gt-table');
           return ['gt-table', 'gt-cell'].some(
             (name) =>
               record.oldValue?.split(/\s+/).includes(name) && !target?.classList.contains(name),
@@ -360,7 +361,7 @@ class Controller {
       subtree: true,
       childList: true,
       attributes: true,
-      attributeFilter: ['class'],
+      attributeFilter: ['class', 'style'],
       attributeOldValue: true,
     });
   }
@@ -514,10 +515,6 @@ class Controller {
                 if (redo) b.editor.redo();
                 else b.editor.undo();
               },
-              resize: (axis, index, size) =>
-                this.p.apply(b, (_, metadata) => {
-                  metadata[axis === 'row' ? 'heights' : 'widths'][index] = size;
-                }),
             },
             (text, target) => {
               const component = new Component();
@@ -853,8 +850,11 @@ export default class GoodTables extends Plugin {
     this.enhancedMenus.add(menu);
     const t = this.t;
     let m: Metadata;
+    let rows: string[][];
     try {
-      m = reconcile(this.locate(b).table);
+      const table = this.locate(b).table;
+      m = reconcile(table);
+      rows = values(table);
     } catch {
       menu.addSeparator();
       menu.addItem((item) =>
@@ -867,6 +867,18 @@ export default class GoodTables extends Plugin {
       return;
     }
     const binding = b;
+    const actions = selectionActions(rows, m, binding.rect, binding.axis, this.settings);
+    const availableFormats = formatMenuOrder(this.settings).filter((id) => {
+      const preset = this.settings.presets.find((entry) => `preset:${entry.id}` === id);
+      return canFormat(
+        rows,
+        m,
+        binding.rect,
+        preset ? 'custom' : (id as FormatKind),
+        this.settings,
+        preset,
+      );
+    });
     const act = (fn: Mutation) => this.apply(binding, fn);
     const item = (target: Menu, label: string, fn: () => void, checked?: boolean) =>
       target.addItem((i) => {
@@ -901,8 +913,15 @@ export default class GoodTables extends Plugin {
               this.app,
               t('custom'),
               (modal) => {
-                const prefix = modal.text(t('prefix'), ''),
-                  suffix = modal.text(t('suffix'), '');
+                const existing = m.cells[binding.rect.r0][binding.rect.c0].format;
+                const prefix = modal.text(
+                    t('prefix'),
+                    existing?.kind === 'custom' ? (existing.prefix ?? '') : '',
+                  ),
+                  suffix = modal.text(
+                    t('suffix'),
+                    existing?.kind === 'custom' ? (existing.suffix ?? '') : '',
+                  );
                 return () => {
                   act((rows, meta, a) =>
                     applyFormat(rows, meta, a, binding.axis, kind, this.settings, {
@@ -924,14 +943,14 @@ export default class GoodTables extends Plugin {
       );
     };
     for (const key of this.settings.menuOrder) {
-      if (key === 'diagonal')
+      if (key === 'diagonal' && actions.diagonal)
         item(
           menu,
           t('diagonal'),
           () => act((rows, meta) => toggleDiagonal(rows, meta)),
           !!m.diagonal,
         );
-      else if (key === 'title') {
+      else if (key === 'title' && actions.title) {
         const checked =
           binding.axis === 'row'
             ? Array.from(
@@ -948,13 +967,12 @@ export default class GoodTables extends Plugin {
           i
             .setTitle(t(checked ? 'clearTitle' : 'title'))
             .setSection('good-tables')
-            .setDisabled(binding.axis === 'cell')
             .setChecked(checked)
             .onClick(() => act((_, meta, a) => toggleTitle(meta, a, binding.axis))),
         );
-      } else if (key === 'format')
+      } else if (key === 'format' && actions.format && availableFormats.length)
         this.submenu(menu, t('format'), (sub) => {
-          for (const id of formatMenuOrder(this.settings)) {
+          for (const id of availableFormats) {
             if (id.startsWith('preset:')) {
               const preset = this.settings.presets.find(
                 (entry) => `preset:${entry.id ?? ''}` === id,
@@ -964,9 +982,10 @@ export default class GoodTables extends Plugin {
           }
         });
       else if (key === 'merge') {
-        item(menu, t('merge'), () => act((_, meta, a) => mergeCells(meta, a)));
-        item(menu, t('unmerge'), () => act((_, meta, a) => unmergeCells(meta, a)));
-      } else if (key === 'background' || key === 'color')
+        if (actions.merge) item(menu, t('merge'), () => act((_, meta, a) => mergeCells(meta, a)));
+        if (actions.unmerge)
+          item(menu, t('unmerge'), () => act((_, meta, a) => unmergeCells(meta, a)));
+      } else if ((key === 'background' || key === 'color') && actions.color)
         item(menu, t(key), () => {
           const colors = new Set<string>();
           for (const table of scanTables(editor.getValue())) {
@@ -983,65 +1002,24 @@ export default class GoodTables extends Plugin {
                 if (cell.color) colors.add(cell.color);
               }
           }
-          const first = m.cells[binding.rect.r0][binding.rect.c0];
+          const selectedColors = new Set(
+            positions(binding.rect)
+              .filter(([r, c]) => !isTitle(m, r, c))
+              .map(([r, c]) => m.cells[r][c][key] ?? ''),
+          );
           new ColorModal(
             this.app,
             t,
             t(key),
-            first[key] ?? '',
+            selectedColors.size === 1 ? [...selectedColors][0] : null,
             Array.from(colors),
             this.settings.favorites,
             (color) => act((_, meta, a) => colorCells(meta, a, key, color)),
           ).open();
         });
-      else if (key === 'structure')
-        this.submenu(menu, t('structure'), (sub) => {
-          const a = binding.rect;
-          for (const [label, axis, index, action, count] of [
-            ['beforeRow', 'row', a.r0, 'insert', 1],
-            ['afterRow', 'row', a.r1 + 1, 'insert', 1],
-            ['beforeColumn', 'column', a.c0, 'insert', 1],
-            ['afterColumn', 'column', a.c1 + 1, 'insert', 1],
-            ['deleteRows', 'row', a.r0, 'delete', a.r1 - a.r0 + 1],
-            ['deleteColumns', 'column', a.c0, 'delete', a.c1 - a.c0 + 1],
-          ] as const)
-            item(sub, t(label), () =>
-              act((rows, meta) => structure(rows, meta, axis, index, action, count)),
-            );
-        });
-      else if (key === 'size')
-        item(menu, t('size'), () =>
-          new FormModal(
-            this.app,
-            t('size'),
-            (modal) => {
-              const width = modal.number(t('width'), m.widths[binding.rect.c0] ?? 120, 24, 4000),
-                height = modal.number(t('height'), m.heights[binding.rect.r0] ?? 32, 24, 4000);
-              modal.contentEl.createEl('button', { text: t('resetSize') }).onclick = () => {
-                act((_, meta, a) => {
-                  positions(a).forEach(([r, c]) => {
-                    delete meta.widths[c];
-                    delete meta.heights[r];
-                  });
-                });
-                modal.close();
-              };
-              return () => {
-                if (!width.checkValidity() || !height.checkValidity()) return;
-                act((_, meta, a) =>
-                  positions(a).forEach(([r, c]) => {
-                    meta.widths[c] = Number(width.value);
-                    meta.heights[r] = Number(height.value);
-                  }),
-                );
-                modal.close();
-              };
-            },
-            t,
-          ).open(),
-        );
     }
-    item(menu, t('edit'), () => this.edit(binding, binding.rect.r0, binding.rect.c0));
+    if (actions.edit)
+      item(menu, t('edit'), () => this.edit(binding, binding.rect.r0, binding.rect.c0));
     item(menu, t('copy'), () => {
       const data = values(binding.table),
         a = binding.rect;
@@ -1054,20 +1032,21 @@ export default class GoodTables extends Plugin {
         )
         .catch((error) => this.fail(error));
     });
-    item(menu, t('paste'), () =>
-      new FormModal(
-        this.app,
-        t('paste'),
-        (modal) => {
-          const input = modal.text(t('paste'), '', true);
-          return () => {
-            act((rows, meta, a) => pasteCells(rows, meta, a, input.value));
-            modal.close();
-          };
-        },
-        t,
-      ).open(),
-    );
+    if (actions.paste)
+      item(menu, t('paste'), () =>
+        new FormModal(
+          this.app,
+          t('paste'),
+          (modal) => {
+            const input = modal.text(t('paste'), '', true);
+            return () => {
+              act((rows, meta, a) => pasteCells(rows, meta, a, input.value));
+              modal.close();
+            };
+          },
+          t,
+        ).open(),
+      );
     this.refreshMenu(menu);
   }
   private refreshMenu(menu: Menu): void {

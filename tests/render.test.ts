@@ -109,7 +109,6 @@ test('inline diagonal fields survive updates, respect IME, route history and cle
     label: (key) => key,
     select: () => {},
     edit: () => {},
-    resize: () => {},
     diagonalEdit: (lower, upper) => edits.push([lower, upper]),
     history: (redo) => history.push(redo),
   });
@@ -193,7 +192,6 @@ test('native table replacement transfers the same diagonal inputs and removes ob
     label: (key: 'lower' | 'upper' | 'edit') => key,
     select: () => {},
     edit: () => {},
-    resize: () => {},
     diagonalEdit: () => {
       oldEdits++;
     },
@@ -273,10 +271,10 @@ test('decoration adds no numbered handles and preserves native selector nodes an
       label: (key) => key,
       select: () => {},
       edit: () => {},
-      resize: () => {},
     },
   );
   assert.equal(table.querySelector('.gt-row-handle,.gt-column-handle'), null);
+  assert.equal(table.querySelector('.gt-resize-row,.gt-resize-column'), null);
   assert.equal(table.querySelector('.table-row-drag-handle'), handle);
   handle.dispatchEvent(
     new window.PointerEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 }),
