@@ -1,0 +1,7 @@
+node_modules/
+main.js
+release/
+.test-build/
+*.log
+qa-vault/
+qa-profile/
