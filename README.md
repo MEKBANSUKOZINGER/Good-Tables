@@ -2,9 +2,11 @@
 
 Good Tables adds presentation and editing tools to Obsidian's native Markdown tables. It supports existing tables without replacing the native table editor.
 
-Desktop only. Version **0.2.1** requires Obsidian **1.14.4 or later**. [한국어 안내](README.ko.md) · [Changelog](CHANGELOG.md).
+Desktop only. Version **0.2.2** requires Obsidian **1.14.4 or later**. [한국어 안내](README.ko.md) · [Changelog](CHANGELOG.md).
 
 ## Features
+
+- Identify context-menu actions and format types by native Obsidian icons, with bookmarks for saved custom formats.
 
 - Create a table at the cursor from a command, ribbon button, or user-assigned hotkey. Specify the total number of rows and columns.
 - Select rectangular ranges by dragging, or use Obsidian's original row and column handles. Good Tables reads those native ranges and adds no numbered selectors.
@@ -17,7 +19,7 @@ Desktop only. Version **0.2.1** requires Obsidian **1.14.4 or later**. [한국�
 - Undo and redo document edits using Obsidian's history. Settings update existing tables immediately.
 - Follow Obsidian's English/Korean language, or override it in settings. Other languages fall back to English.
 
-Good Tables preserves the native menu for selected ranges, ordinary cells and focused cell editors, then appends its own entries after a separator. Native formatting, alignment, clipboard actions and other plugins' entries keep their order. Native table clipboard data is handled by Obsidian.
+Good Tables preserves the native menu for selected ranges, ordinary cells and focused cell editors, then appends its own entries after a separator. Native formatting, alignment, clipboard actions and other plugins' entries keep their order. Native table clipboard data is handled by Obsidian. Fileclass note-property and schema commands are omitted only inside table-cell menus; they remain available in the ordinary note editor.
 
 Only applicable Good Tables actions appear for the current selection. For example, a single cell has no Merge command, and Diagonal first cell appears only on the first corner cell. Saved formats can be reordered individually; the general **Custom** entry remains last. Redundant Good Tables row/column and cell-size controls have been removed; previously stored dimensions remain compatible.
 
@@ -29,7 +31,7 @@ Version 0.2.0 reuses table decoration across updates and applies changes before 
 
 ## Install
 
-Download `main.js`, `manifest.json`, and `styles.css` from a [GitHub release](https://github.com/MEKBANSUKOZINGER/Good-Tables/releases), or build them locally. Copy all three files into `<vault>/.obsidian/plugins/good-tables/`. Reload Obsidian and enable **Good Tables** in Community plugins. The optional `good-tables-0.2.1.zip` contains the same files inside a `good-tables/` folder; GitHub's automatic source archives require building first.
+Download `main.js`, `manifest.json`, and `styles.css` from a [GitHub release](https://github.com/MEKBANSUKOZINGER/Good-Tables/releases), or build them locally. Copy all three files into `<vault>/.obsidian/plugins/good-tables/`. Reload Obsidian and enable **Good Tables** in Community plugins. The optional `good-tables-0.2.2.zip` contains the same files inside a `good-tables/` folder; GitHub's automatic source archives require building first.
 
 The creation command is **Good Tables: Create table**. Assign its hotkey in Obsidian's Hotkeys settings. No hotkey is assigned automatically.
 

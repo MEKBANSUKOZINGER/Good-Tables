@@ -6,7 +6,12 @@ import { DEFAULTS, makeMetadata } from '../src/model';
 import { ColorPicker, hexToHsv, hsvToHex } from '../src/color-picker';
 import { applyFormat, mergeCells } from '../src/operations';
 import { closeSubmenuOnExit, watchSelectionBoundary } from '../src/interactions';
-import { afterNativeContextMenu, appendMenuGroup, nativeSelection } from '../src/native-table';
+import {
+  afterNativeContextMenu,
+  appendMenuGroup,
+  filterTableMenu,
+  nativeSelection,
+} from '../src/native-table';
 function fixture() {
   const window = new Window();
   const document = window.document;
@@ -563,4 +568,52 @@ test('submenu timers and cancellation belong to the menu owner window', async ()
   assert.equal(closed, 0);
   dispose();
   window.close();
+});
+
+test('table menu removes note-property commands while preserving native and editing submenu nodes', () => {
+  const { document, window } = fixture();
+  const root = document.createElement('div'),
+    native = document.createElement('div'),
+    properties = document.createElement('div');
+  native.className = 'menu-group';
+  properties.className = 'menu-group';
+  root.append(native, properties);
+  document.body.append(root);
+  const entry = (title: string, parent: typeof native, section = '') => {
+    const dom = document.createElement('div'),
+      titleEl = document.createElement('span');
+    dom.className = 'menu-item';
+    titleEl.className = 'menu-item-title';
+    titleEl.textContent = title;
+    dom.append(titleEl);
+    parent.append(dom);
+    return { dom, titleEl, section };
+  };
+  const paragraph = entry('Paragraph', native),
+    insert = entry('Insert', native),
+    row = entry('Row', native, 'table'),
+    editing = entry('Convert selection to uppercase', native);
+  const field = entry('Manage note fields', properties),
+    schema = entry('Open Project schema', properties),
+    add = entry('Add fileClass', properties);
+  const items = [paragraph, insert, field, schema, add, row, editing];
+  const before = native.outerHTML;
+  let clicks = 0;
+  row.dom.addEventListener('click', () => clicks++);
+  const menu = { dom: root, items, selected: 6 } as unknown as Parameters<
+    typeof filterTableMenu
+  >[0];
+  filterTableMenu(menu);
+  assert.equal(menu.items, items);
+  assert.deepEqual(
+    items.map((item) => item.titleEl.textContent),
+    ['Paragraph', 'Insert', 'Row', 'Convert selection to uppercase'],
+  );
+  assert.equal(native.outerHTML, before);
+  assert.equal(properties.isConnected, false);
+  assert.equal(menu.selected, 3);
+  row.dom.dispatchEvent(new window.MouseEvent('click'));
+  assert.equal(clicks, 1);
+  filterTableMenu(menu);
+  assert.equal(items.length, 4, 'Repeated filtering must be harmless');
 });

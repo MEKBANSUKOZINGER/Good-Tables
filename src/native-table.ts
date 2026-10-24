@@ -54,7 +54,52 @@ export function afterNativeContextMenu(
 export interface MenuDOM {
   dom?: HTMLElement;
   scrollEl?: HTMLElement;
-  items?: { section?: string; dom?: HTMLElement }[];
+  items?: { section?: string; dom?: HTMLElement; titleEl?: HTMLElement }[];
+  selected?: number;
+}
+
+// Fileclass adds these note/schema operations to every editor-menu, including
+// native table cells. They edit note properties rather than the selected text.
+const NOTE_PROPERTY_ACTIONS = new Set([
+  'Manage note fields',
+  'Update a field',
+  'Insert missing fields',
+  'Reorder properties',
+  'Add fileClass',
+  'Insert notes that point here',
+  'Manage this fileClass',
+  'Modify base for this fileClass',
+  'Create a base for this fileClass',
+  'Open base for this fileClass',
+  'Insert missing fields across this fileClass',
+  'Bulk edit a field of this fileClass',
+  'Create a class',
+  'Draw the schema canvas',
+]);
+
+/** Called only for a confirmed table context. Preserve editing callbacks and
+ * native submenu nodes, including unsectioned Paragraph and Insert submenus. */
+export function filterTableMenu(menu: MenuDOM): void {
+  const { items } = menu;
+  if (!items) return;
+  for (let index = items.length - 1; index >= 0; index--) {
+    const item = items[index];
+    if (item.section) continue;
+    const title = (
+      item.titleEl?.textContent ??
+      item.dom?.querySelector('.menu-item-title')?.textContent ??
+      ''
+    ).trim();
+    if (!NOTE_PROPERTY_ACTIONS.has(title) && !/^Open .+ schema$/.test(title)) continue;
+    const group = item.dom?.parentElement;
+    item.dom?.remove();
+    items.splice(index, 1);
+    if (typeof menu.selected === 'number') {
+      if (menu.selected === index) menu.selected = -1;
+      else if (menu.selected > index) menu.selected--;
+    }
+    if (group?.classList.contains('menu-group') && !group.children.length) group.remove();
+  }
 }
 
 /** A focused-cell menu may already have rendered native section submenus.

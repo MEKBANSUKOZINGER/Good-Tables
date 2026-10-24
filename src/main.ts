@@ -60,11 +60,23 @@ import { closeSubmenuOnExit, watchSelectionBoundary } from './interactions';
 import {
   afterNativeContextMenu,
   appendMenuGroup,
+  filterTableMenu,
   nativeMovement,
   MenuDOM,
   nativeSelection,
 } from './native-table';
 import { metadataSynchronization } from './metadata-sync';
+
+const FORMAT_ICONS: Record<FormatKind, string> = {
+  percent: 'percent',
+  calc: 'calculator',
+  bar: 'chart-bar',
+  date: 'calendar-days',
+  datetime: 'calendar-clock',
+  time: 'clock',
+  rating: 'star',
+  custom: 'settings-2',
+};
 
 interface Binding {
   element: HTMLTableElement;
@@ -804,9 +816,9 @@ export default class GoodTables extends Plugin {
       this.fail(error);
     }
   }
-  private submenu(menu: Menu, label: string, build: (sub: Menu) => void): void {
+  private submenu(menu: Menu, label: string, icon: string, build: (sub: Menu) => void): void {
     menu.addItem((item) => {
-      item.setTitle(label).setSection('good-tables');
+      item.setTitle(label).setIcon(icon).setSection('good-tables');
       const extended = item as MenuItem & { setSubmenu?: () => Menu };
       if (typeof extended.setSubmenu === 'function') {
         const child = extended.setSubmenu();
@@ -847,6 +859,7 @@ export default class GoodTables extends Plugin {
     const b = contextBinding;
     if (!b || b.editor !== editor || !b.element.isConnected) return;
     if (this.enhancedMenus.has(menu)) return;
+    filterTableMenu(menu as Menu & MenuDOM);
     this.enhancedMenus.add(menu);
     const t = this.t;
     let m: Metadata;
@@ -860,6 +873,7 @@ export default class GoodTables extends Plugin {
       menu.addItem((item) =>
         item
           .setTitle('Good Tables: ' + t('reset'))
+          .setIcon('rotate-ccw')
           .setSection('good-tables')
           .onClick(() => this.reset(editor, b)),
       );
@@ -880,9 +894,9 @@ export default class GoodTables extends Plugin {
       );
     });
     const act = (fn: Mutation) => this.apply(binding, fn);
-    const item = (target: Menu, label: string, fn: () => void, checked?: boolean) =>
+    const item = (target: Menu, label: string, icon: string, fn: () => void, checked?: boolean) =>
       target.addItem((i) => {
-        i.setTitle(label).setSection('good-tables').onClick(fn);
+        i.setTitle(label).setIcon(icon).setSection('good-tables').onClick(fn);
         if (checked !== undefined) i.setChecked(checked);
       });
     menu.addSeparator();
@@ -907,6 +921,7 @@ export default class GoodTables extends Plugin {
       item(
         target,
         label ?? t(kind),
+        label ? 'bookmark' : FORMAT_ICONS[kind],
         () => {
           if (kind === 'custom' && !custom) {
             new FormModal(
@@ -947,6 +962,7 @@ export default class GoodTables extends Plugin {
         item(
           menu,
           t('diagonal'),
+          'square-slash',
           () => act((rows, meta) => toggleDiagonal(rows, meta)),
           !!m.diagonal,
         );
@@ -966,12 +982,13 @@ export default class GoodTables extends Plugin {
         menu.addItem((i) =>
           i
             .setTitle(t(checked ? 'clearTitle' : 'title'))
+            .setIcon('heading')
             .setSection('good-tables')
             .setChecked(checked)
             .onClick(() => act((_, meta, a) => toggleTitle(meta, a, binding.axis))),
         );
       } else if (key === 'format' && actions.format && availableFormats.length)
-        this.submenu(menu, t('format'), (sub) => {
+        this.submenu(menu, t('format'), 'paintbrush', (sub) => {
           for (const id of availableFormats) {
             if (id.startsWith('preset:')) {
               const preset = this.settings.presets.find(
@@ -982,11 +999,16 @@ export default class GoodTables extends Plugin {
           }
         });
       else if (key === 'merge') {
-        if (actions.merge) item(menu, t('merge'), () => act((_, meta, a) => mergeCells(meta, a)));
+        if (actions.merge)
+          item(menu, t('merge'), 'table-cells-merge', () =>
+            act((_, meta, a) => mergeCells(meta, a)),
+          );
         if (actions.unmerge)
-          item(menu, t('unmerge'), () => act((_, meta, a) => unmergeCells(meta, a)));
+          item(menu, t('unmerge'), 'table-cells-split', () =>
+            act((_, meta, a) => unmergeCells(meta, a)),
+          );
       } else if ((key === 'background' || key === 'color') && actions.color)
-        item(menu, t(key), () => {
+        item(menu, t(key), key === 'background' ? 'paint-bucket' : 'baseline', () => {
           const colors = new Set<string>();
           for (const table of scanTables(editor.getValue())) {
             if (
@@ -1019,8 +1041,8 @@ export default class GoodTables extends Plugin {
         });
     }
     if (actions.edit)
-      item(menu, t('edit'), () => this.edit(binding, binding.rect.r0, binding.rect.c0));
-    item(menu, t('copy'), () => {
+      item(menu, t('edit'), 'pencil', () => this.edit(binding, binding.rect.r0, binding.rect.c0));
+    item(menu, t('copy'), 'copy', () => {
       const data = values(binding.table),
         a = binding.rect;
       void binding.element.ownerDocument.defaultView?.navigator.clipboard
@@ -1033,7 +1055,7 @@ export default class GoodTables extends Plugin {
         .catch((error) => this.fail(error));
     });
     if (actions.paste)
-      item(menu, t('paste'), () =>
+      item(menu, t('paste'), 'clipboard-paste', () =>
         new FormModal(
           this.app,
           t('paste'),

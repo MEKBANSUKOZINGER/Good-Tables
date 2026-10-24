@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.2 — 2026-10-24
+
+- Add native Obsidian icons to every Good Tables context-menu action and format, including saved custom formats and the reset fallback.
+- Preserve checked states, submenu navigation, and the native editing menu while adding visual cues for colors, merges, dates, ratings, and calculations.
+- Omit Fileclass note-property and schema commands inside table-cell menus while keeping them available in the ordinary note editor.
+
+Validation: 55 automated tests, 6 live icon checks covering 20 distinct icons, and 8 native-menu compatibility checks passed on Obsidian 1.14.5.
+
 ## 0.2.1 — 2026-10-23
 
 - Place HEX beside RGB in one compact input row to reduce color-dialog height.

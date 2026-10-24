@@ -98,17 +98,34 @@
     };
     const baseline = await open(false);
     const native = signature(baseline);
+    // Read the installed provider's actual commands, rather than duplicating
+    // Good Tables' filtering rules in this compatibility check.
+    const provider = app.plugins.plugins.fileclass?._children?.find(
+      (child) => typeof child.build === 'function' && 'fileMenuOpen' in child,
+    );
+    const noteCommands = new Set();
+    if (app.plugins.plugins.fileclass?.settings.enableContextMenu)
+      assert(provider, 'Fileclass menu provider missing');
+    if (provider && app.plugins.plugins.fileclass.settings.enableContextMenu) {
+      const propertyMenu = new baseline.constructor();
+      provider.build(propertyMenu, view.file);
+      for (const item of signature(propertyMenu)) noteCommands.add(item.title);
+      propertyMenu.hide();
+    }
+    const expectedEditing = (items) => items.filter((item) => !noteCommands.has(item.title));
     baseline.hide();
     await wait();
     const enhanced = await open(true);
     const actual = signature(enhanced);
     assert(
-      JSON.stringify(actual.filter((i) => i.section !== 'good-tables')) === JSON.stringify(native),
+      JSON.stringify(actual.filter((i) => i.section !== 'good-tables')) ===
+        JSON.stringify(expectedEditing(native)),
       'Native menu items/children changed',
     );
     const first = actual.findIndex((i) => i.section === 'good-tables');
     assert(
-      first === native.length && actual.slice(first).every((i) => i.section === 'good-tables'),
+      first === expectedEditing(native).length &&
+        actual.slice(first).every((i) => i.section === 'good-tables'),
       'Good Tables is not below every native item',
     );
     const firstOwn = enhanced.items.find((i) => i.section === 'good-tables');
@@ -153,12 +170,12 @@
       const actual = signature(enhanced);
       assert(
         JSON.stringify(actual.filter((i) => i.section !== 'good-tables')) ===
-          JSON.stringify(expected),
+          JSON.stringify(expectedEditing(expected)),
         label + ': native menu changed',
       );
       const first = actual.findIndex((i) => i.section === 'good-tables');
       assert(
-        first === expected.length && first >= 0,
+        first === expectedEditing(expected).length && first >= 0,
         label + ': Good Tables section order changed',
       );
       enhanced.hide();
@@ -169,6 +186,39 @@
     widget.setCellFocus(1, 0);
     await wait();
     await compareCurrentMenu('focused cell editor menu preserved with Good Tables appended');
+    // Table-only filtering must leave the ordinary note editor's menus alone.
+    view.editor.setCursor(0, 0);
+    view.editor.focus();
+    await wait();
+    let outsideMenu;
+    const outsideRef = app.workspace.on('editor-menu', (menu) => {
+      outsideMenu = menu;
+    });
+    try {
+      binding()
+        .cm.contentDOM.querySelector('.cm-line')
+        .dispatchEvent(
+          new PointerEvent('contextmenu', {
+            view: window,
+            bubbles: true,
+            cancelable: true,
+            button: 2,
+            clientX: 500,
+            clientY: 200,
+          }),
+        );
+      await wait();
+      assert(outsideMenu, 'Outside editor menu missing');
+      const outsideTitles = new Set(signature(outsideMenu).map((item) => item.title));
+      assert(
+        [...noteCommands].every((title) => outsideTitles.has(title)),
+        'Note-property menus changed outside the table',
+      );
+      results.push('Fileclass note-property menus stay available outside table cells');
+    } finally {
+      app.workspace.offref(outsideRef);
+      outsideMenu?.hide();
+    }
     const normalized = (source) =>
       source.replace(
         /^\|.*$/gm,
