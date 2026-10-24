@@ -744,3 +744,23 @@ test('merged Markdown inherits an explicit foreground and releases its override 
   assert.equal((overlay as unknown as HTMLElement).style.getPropertyValue('--gt-fg'), '');
   render.dispose();
 });
+
+test('calculated displays refresh shared totals after native values and settings change', () => {
+  const { table } = fixture(),
+    rows = [
+      ['A', 'B'],
+      ['1', '3'],
+    ],
+    m = makeMetadata(rows);
+  applyFormat(rows, m, { r0: 1, r1: 1, c0: 0, c1: 1 }, 'row', 'calc', DEFAULTS);
+  const render = decorateTable(table as unknown as HTMLTableElement, rows, m, DEFAULTS),
+    first = table.rows[1].cells[0].querySelector('.gt-display');
+  assert.equal(first?.textContent, '25%');
+  rows[1][1] = '7';
+  render.update(rows, m, DEFAULTS);
+  assert.equal(table.rows[1].cells[0].querySelector('.gt-display'), first);
+  assert.equal(first?.textContent, '12.5%');
+  render.update(rows, m, { ...DEFAULTS, decimals: 0 });
+  assert.equal(first?.textContent, '13%');
+  render.dispose();
+});

@@ -31,7 +31,7 @@ import {
   toggleTitle,
   unmergeCells,
 } from '../src/operations';
-import { displayCell } from '../src/formats';
+import { displayCell, formatTable } from '../src/formats';
 import { EditorState, Transaction } from '@codemirror/state';
 import { metadataSynchronization } from '../src/metadata-sync';
 import { nativeMovement } from '../src/native-table';
@@ -862,4 +862,64 @@ test('plain selections hide original-value commands while decorated selections r
     false,
     'Inactive stored colors do not decorate a plain cell',
   );
+});
+
+test('table calculation passes preserve independent groups and refresh titles, merges and edited values', () => {
+  const rows = [
+      ['100', '100'],
+      ['1', '3'],
+      ['3', '9'],
+      ['bad', ''],
+    ],
+    m = makeMetadata(rows);
+  m.headerRows = [0];
+  applyFormat(rows, m, { r0: 0, r1: 3, c0: 0, c1: 1 }, 'column', 'calc', DEFAULTS);
+  let display = formatTable(rows, m, DEFAULTS);
+  assert.equal(display(1, 0).text, '25%');
+  assert.equal(display(2, 0).text, '75%');
+  assert.equal(display(1, 1).text, '25%');
+  assert.equal(display(3, 0).text, 'bad(!NUM)');
+  assert.equal(display(3, 1).text, '');
+  m.merges = [{ r0: 1, r1: 2, c0: 0, c1: 0 }];
+  display = formatTable(rows, m, DEFAULTS);
+  assert.equal(display(1, 0).text, '100%');
+  assert.equal(display(1, 1).text, '25%');
+  // A later title setting includes existing title formats rather than cached totals.
+  m.cells[0][0].format = structuredClone(m.cells[1][0].format);
+  display = formatTable(rows, m, { ...DEFAULTS, formatTitles: true });
+  assert.equal(display(1, 0).text, '0.99%');
+  rows[1][0] = '**5**';
+  display = formatTable(rows, m, { ...DEFAULTS, formatTitles: true });
+  assert.equal(display(1, 0).text, '4.76%');
+});
+
+test('shared bar totals keep negative shifting, zero totals and finite extreme values stable', () => {
+  const rows = [['-5'], ['0'], ['5']],
+    m = makeMetadata(rows);
+  applyFormat(rows, m, { r0: 0, r1: 2, c0: 0, c1: 0 }, 'column', 'bar', DEFAULTS);
+  let display = formatTable(rows, m, { ...DEFAULTS, barLabel: 'percent' });
+  assert.equal(display(0, 0).fraction, 0);
+  assert.equal(display(1, 0).text, '33.33%');
+  assert.equal(display(2, 0).text, '66.67%');
+  rows[0][0] = '-10';
+  display = formatTable(rows, m, { ...DEFAULTS, barLabel: 'percent' });
+  assert.equal(display(1, 0).text, '40%');
+  assert.equal(display(2, 0).text, '60%');
+  rows[0][0] = '0';
+  rows[2][0] = '0';
+  display = formatTable(rows, m, DEFAULTS);
+  assert.equal(display(1, 0).fraction, 0);
+  rows[0][0] = '1' + '0'.repeat(308);
+  rows[2][0] = rows[0][0];
+  display = formatTable(rows, m, DEFAULTS);
+  assert.equal(display(0, 0).fraction, 0.5);
+});
+
+test('a 5000-cell calculation pass produces the expected percentages for every cell', () => {
+  const rows = Array.from({ length: 100 }, () => Array<string>(50).fill('1')),
+    m = makeMetadata(rows);
+  applyFormat(rows, m, { r0: 0, r1: 99, c0: 0, c1: 49 }, 'cell', 'calc', DEFAULTS);
+  const display = formatTable(rows, m, DEFAULTS);
+  for (let r = 0; r < 100; r++)
+    for (let c = 0; c < 50; c++) assert.equal(display(r, c).text, '0.02%');
 });

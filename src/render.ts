@@ -1,5 +1,5 @@
 import { Metadata, Rect, Settings, contains, isTitle } from './model';
-import { displayCell } from './formats';
+import { Display, formatTable } from './formats';
 import { restoreClasses } from './native-table';
 import { escapeCell } from './markdown';
 import { exclusiveInline, fillInline, inlineCell } from './inline';
@@ -398,6 +398,9 @@ export function decorateTable(
     settings = nextSettings;
     table.classList.toggle('gt-full-width', settings.fullWidth);
     table.classList.add('gt-table');
+    const displayFor: (r: number, c: number) => Display = data
+      ? formatTable(rows, data, settings)
+      : (r, c) => ({ text: rows[r][c] });
     for (const [r, row] of cells.entries())
       for (const [c, cell] of row.entries()) {
         cell.classList.add('gt-cell');
@@ -438,7 +441,7 @@ export function decorateTable(
           (!title || settings.formatTitles) &&
           !exclusiveInline(rows[r][c])
         ) {
-          const output = displayCell(rows, data, r, c, settings);
+          const output = displayFor(r, c);
           let display = displays.get(cell);
           if (!display) {
             display = track(cell.createSpan({ cls: 'gt-display' }));
@@ -522,7 +525,7 @@ export function decorateTable(
           anchor.classList.contains('gt-colored-text'),
         );
         entry.element.setCssProps({ '--gt-fg': anchor.style.getPropertyValue('--gt-fg') });
-        const output = displayCell(rows, data, rect.r0, rect.c0, settings);
+        const output = displayFor(rect.r0, rect.c0);
         const rich = !data.cells[rect.r0][rect.c0].format && !!renderMarkdown;
         const contentKey = `${rich}:${output.text}:${rows[rect.r0][rect.c0]}`;
         if (entry.text !== contentKey) {

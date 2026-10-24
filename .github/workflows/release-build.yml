@@ -21,6 +21,7 @@ jobs:
           package-manager-cache: false
       - run: npm ci
       - run: npm run lint
+      - run: npm run format:check
       - run: npm test
       - run: npm run package
       - name: Check release versions
@@ -32,6 +33,9 @@ jobs:
           const manifest = read('manifest.json');
           assert.match(manifest.version, /^\d+\.\d+\.\d+$/);
           assert.equal(read('package.json').version, manifest.version);
+          const lock = read('package-lock.json');
+          assert.equal(lock.version, manifest.version);
+          assert.equal(lock.packages[''].version, manifest.version);
           assert.equal(read('versions.json')[manifest.version], manifest.minAppVersion);
           if (process.env.GITHUB_REF_TYPE === 'tag') assert.equal(process.env.GITHUB_REF_NAME, manifest.version);
           NODE

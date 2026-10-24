@@ -1,4 +1,4 @@
-import { Metadata, Settings, contains, isTitle } from './model';
+import { Metadata, Settings, isTitle } from './model';
 import { numeric } from './operations';
 import { inlineCell } from './inline';
 export interface Display {
@@ -18,12 +18,75 @@ function rounded(n: number, decimals: number): string {
 export function ratioLabel(n: number, decimals: number): string {
   return `${rounded(n * 100, decimals)}%`;
 }
+interface CalculationGroup {
+  negative: boolean;
+  shift: number;
+  scale: number;
+  total: number;
+  shiftedTotal: number;
+}
+
+function calculationGroups(
+  rows: string[][],
+  m: Metadata,
+  s: Settings,
+): Map<string, CalculationGroup> {
+  const members = new Map<string, number[]>();
+  for (const row of m.cells)
+    for (const { format } of row)
+      if (format && (format.kind === 'calc' || format.kind === 'bar') && !members.has(format.group))
+        members.set(format.group, []);
+  const groups = new Map<string, CalculationGroup>();
+  if (!members.size) return groups;
+  const columns = rows[0].length,
+    covered = new Set<number>();
+  for (const merge of m.merges)
+    for (let r = merge.r0; r <= merge.r1; r++)
+      for (let c = merge.c0; c <= merge.c1; c++)
+        if (r !== merge.r0 || c !== merge.c0) covered.add(r * columns + c);
+  for (let r = 0; r < rows.length; r++)
+    for (let c = 0; c < columns; c++) {
+      const format = m.cells[r][c].format;
+      if (
+        !format ||
+        !members.has(format.group) ||
+        (isTitle(m, r, c) && !s.formatTitles) ||
+        covered.has(r * columns + c)
+      )
+        continue;
+      const value = numeric(rows[r][c]);
+      if (value !== null) members.get(format.group)!.push(value);
+    }
+  for (const [id, values] of members) {
+    const scale = Math.max(1, ...values.map((value) => Math.abs(value)));
+    const shift = Math.min(0, ...values);
+    groups.set(id, {
+      negative: values.some((value) => value < 0),
+      scale,
+      shift,
+      total: values.reduce((sum, value) => sum + value / scale, 0),
+      shiftedTotal: values.reduce((sum, value) => sum + (value / scale - shift / scale), 0),
+    });
+  }
+  return groups;
+}
+
+/** A render pass shares group totals; a new pass reads fresh values and settings. */
+export function formatTable(
+  rows: string[][],
+  m: Metadata,
+  s: Settings,
+): (r: number, c: number) => Display {
+  const groups = calculationGroups(rows, m, s);
+  return (r, c) => displayCell(rows, m, r, c, s, groups);
+}
 export function displayCell(
   rows: string[][],
   m: Metadata,
   r: number,
   c: number,
   s: Settings,
+  groups?: Map<string, CalculationGroup>,
 ): Display {
   const presentation = inlineCell(rows[r][c]);
   const raw = presentation.text,
@@ -62,21 +125,11 @@ export function displayCell(
   }
   if (format.kind === 'percent')
     return n < 0 ? error('!NUM') : { text: `${rounded(n, s.decimals)}%` };
-  const members: number[] = [];
-  for (let rr = 0; rr < rows.length; rr++)
-    for (let cc = 0; cc < rows[rr].length; cc++) {
-      if (m.cells[rr][cc].format?.group !== format.group || (isTitle(m, rr, cc) && !s.formatTitles))
-        continue;
-      if (m.merges.some((a) => contains(a, rr, cc) && (a.r0 !== rr || a.c0 !== cc))) continue;
-      const value = numeric(rows[rr][cc]);
-      if (value !== null) members.push(value);
-    }
-  if (format.kind === 'calc' && members.some((v) => v < 0)) return error('!NUM');
-  const shift = format.kind === 'bar' ? Math.min(0, ...members) : 0;
-  // Scale before summing to prevent finite, very large inputs overflowing the denominator.
-  const scale = Math.max(1, ...members.map((v) => Math.abs(v)));
-  const shifted = members.map((v) => v / scale - shift / scale);
-  const total = shifted.reduce((a, b) => a + b, 0);
+  const group = (groups ?? calculationGroups(rows, m, s)).get(format.group)!;
+  if (format.kind === 'calc' && group.negative) return error('!NUM');
+  const shift = format.kind === 'bar' ? group.shift : 0;
+  const scale = group.scale;
+  const total = format.kind === 'bar' ? group.shiftedTotal : group.total;
   const fraction = total === 0 ? 0 : Math.max(0, Math.min(1, (n / scale - shift / scale) / total));
   if (format.kind === 'calc') return { text: ratioLabel(fraction, s.decimals) };
   return { text: s.barLabel === 'percent' ? ratioLabel(fraction, s.decimals) : raw, fraction };

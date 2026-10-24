@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.4 — 2026-10-24
+
+- Update the plugin version and installation packages to 0.2.4.
+- Include the verified native-format integration, theme-color priority, conditional original-value menus, and large-table calculation improvements.
+
+Validation: 70 automated tests passed. The unchanged feature code was verified by 81 live-app QA scenarios on Obsidian 1.14.5; dependency audit reported zero vulnerabilities.
+
 ## 0.2.3 — 2026-10-24
 
 - Integrate Good Tables formats into the native Format submenu, after Code/Math/Comment and before Clear formatting, preserving native items and hover behavior.
@@ -12,7 +19,10 @@
 - Give explicit Good Tables foreground colors priority over theme-specific bold, italic, and highlight colors in Live Preview, native cell editing, reading view, and merged content. Clearing the foreground restores theme styling.
 - Hide original-value copy/edit commands for plain selections with no Good Tables formatting, colors, titles, merges, or diagonal cells. Keep native copy/editing and valid original-value actions available.
 
-Validation: 66 automated tests and 29 focused live-app QA scenarios passed on Obsidian 1.14.5 with the Things theme.
+- Compute calculation-group totals once per table update to avoid repeated work on large tables.
+- Update the development-only Happy DOM test dependency to a patched version and strengthen release version/format checks.
+
+Validation: 70 automated tests, 81 live-app QA scenarios, and a clean installation/build reproduction passed on Obsidian 1.14.5 with the Things theme. Dependency audit reported zero vulnerabilities.
 
 ## 0.2.2 — 2026-10-24
 
