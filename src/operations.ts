@@ -100,6 +100,24 @@ export function applyFormat(
     };
   }
 }
+export const CELL_FORMAT_PROPERTIES = [
+  'format',
+  'background',
+  'color',
+  'titleBackground',
+  'titleColor',
+  'barColor',
+] as const;
+export function hasCellFormatting(m: Metadata, a: Rect): boolean {
+  return positions(a).some(([r, c]) =>
+    CELL_FORMAT_PROPERTIES.some((key) => m.cells[r]?.[c]?.[key] !== undefined),
+  );
+}
+/** Clear presentation only; preserve cell identity and all table structure. */
+export function clearCellFormatting(m: Metadata, a: Rect): void {
+  for (const [r, c] of positions(a))
+    for (const key of CELL_FORMAT_PROPERTIES) delete m.cells[r][c][key];
+}
 export function colorCells(
   m: Metadata,
   a: Rect,

@@ -1,6 +1,14 @@
-import { EditorState, StateField, Transaction, TransactionSpec } from '@codemirror/state';
+import { isolateHistory } from '@codemirror/commands';
+import {
+  Annotation,
+  EditorState,
+  StateField,
+  Transaction,
+  TransactionSpec,
+} from '@codemirror/state';
 import { exclusiveInline } from './inline';
-import { Format } from './model';
+import { CellMeta, Format, Rect, positions } from './model';
+import { CELL_FORMAT_PROPERTIES, clearCellFormatting, hasCellFormatting } from './operations';
 import {
   Table,
   TablePermutation,
@@ -13,6 +21,68 @@ import {
 } from './markdown';
 
 export type MovementResolver = (oldTable: Table, newTable: Table) => TablePermutation | undefined;
+
+interface FormattingClear {
+  tableId: string;
+  rect: Rect;
+  applied: boolean;
+}
+const nativeClear = Annotation.define<FormattingClear>();
+const pendingClears = new WeakMap<EditorState, FormattingClear>();
+/** Let the original native command keep its text/selection handling. Its document
+ * transaction clears our metadata too, including commands that change no text. */
+export function withNativeClearFormatting(
+  editor: { state: EditorState; dispatch: (spec: TransactionSpec) => void },
+  tableId: string,
+  rect: Rect,
+  native: () => unknown,
+): unknown {
+  const state = editor.state,
+    request = { tableId, rect: { ...rect }, applied: false };
+  pendingClears.set(state, request);
+  try {
+    const result = native();
+    if (!request.applied) editor.dispatch({ annotations: nativeClear.of(request) });
+    return result;
+  } finally {
+    pendingClears.delete(state);
+  }
+}
+interface ClearedPresentation {
+  cell: CellMeta;
+  value: string;
+  clearedValue: string;
+}
+const presentationHistory = StateField.define<Map<string, ClearedPresentation>>({
+  create: () => new Map(),
+  update(previous, tr) {
+    if (!tr.docChanged) return previous;
+    const request = tr.annotation(nativeClear) ?? pendingClears.get(tr.startState);
+    if (!request?.applied && !previous.size) return previous;
+    const after = scanTables(tr.newDoc.toString());
+    const present = new Set(after.flatMap((t) => t.metadata?.cells.flat().map((c) => c.id) ?? []));
+    const next = new Map(previous);
+    for (const id of next.keys()) if (!present.has(id)) next.delete(id);
+    if (!request?.applied) return next;
+    const before = scanTables(tr.startState.doc.toString()).find(
+      (t) => t.metadata?.id === request.tableId,
+    );
+    const current = after.find((t) => t.metadata?.id === request.tableId);
+    if (!before?.metadata || !current?.metadata) return next;
+    const oldRows = values(before),
+      rows = values(current);
+    for (const [r, c] of positions(request.rect)) {
+      const cell = before.metadata.cells[r]?.[c];
+      if (!cell || !hasCellFormatting(before.metadata, { r0: r, r1: r, c0: c, c1: c })) continue;
+      next.set(cell.id, {
+        cell: structuredClone(cell),
+        value: oldRows[r][c],
+        clearedValue: rows[r][c],
+      });
+    }
+    return next;
+  },
+});
 
 interface ClearedFormat {
   format: Format;
@@ -70,7 +140,9 @@ export function synchronizeMetadata(
   tr: Transaction,
   movement?: MovementResolver,
 ): TransactionSpec | readonly TransactionSpec[] {
-  if (!tr.docChanged) return tr;
+  const request = tr.annotation(nativeClear) ?? pendingClears.get(tr.startState);
+  const clearing = request && !request.applied ? request : undefined;
+  if (!tr.docChanged && !clearing) return tr;
   const before = tr.startState.doc.toString(),
     after = tr.newDoc.toString();
   if (!before.includes('good-tables:')) return tr;
@@ -104,8 +176,33 @@ export function synchronizeMetadata(
         ? remapMetadata(baseline, rows, permutation.rows, permutation.columns, true)
         : reconcile({ ...table, metadata: baseline });
       meta.alignments = [...table.divider.values];
+      if (clearing?.tableId === meta.id) {
+        clearCellFormatting(meta, clearing.rect);
+        clearing.applied = true;
+      }
       for (const [r, row] of rows.entries())
         for (const [c, raw] of row.entries()) {
+          const cell = meta.cells[r][c],
+            cleared = tr.startState.field(presentationHistory, false)?.get(cell.id);
+          if (cleared && cleared.value !== cleared.clearedValue) {
+            if (
+              tr.isUserEvent('undo') &&
+              raw === cleared.value &&
+              baseline.snapshot[r]?.[c] === cleared.clearedValue &&
+              !hasCellFormatting(meta, { r0: r, r1: r, c0: c, c1: c })
+            ) {
+              for (const key of CELL_FORMAT_PROPERTIES) {
+                const value = cleared.cell[key];
+                if (value !== undefined) Object.assign(cell, { [key]: structuredClone(value) });
+              }
+            } else if (
+              tr.isUserEvent('redo') &&
+              raw === cleared.clearedValue &&
+              baseline.snapshot[r]?.[c] === cleared.value
+            ) {
+              clearCellFormatting(meta, { r0: r, r1: r, c0: c, c1: c });
+            }
+          }
           if (exclusiveInline(raw)) delete meta.cells[r][c].format;
           else if (tr.isUserEvent('undo')) {
             const cell = meta.cells[r][c],
@@ -128,11 +225,21 @@ export function synchronizeMetadata(
       /* Preserve ambiguous or unsupported source rather than guess its cell mapping. */
     }
   }
-  return changes.length ? [tr, { changes, sequential: true }] : tr;
+  return changes.length
+    ? [
+        tr,
+        {
+          changes,
+          sequential: true,
+          annotations: clearing?.applied ? isolateHistory.of('full') : undefined,
+        },
+      ]
+    : tr;
 }
 export const metadataSynchronization = (
   movement?: (tr: Transaction) => MovementResolver | undefined,
 ) => [
   exclusiveHistory,
+  presentationHistory,
   EditorState.transactionFilter.of((tr) => synchronizeMetadata(tr, movement?.(tr))),
 ];

@@ -44,19 +44,20 @@ The CLI wrapper targets Windows installations and requires Obsidian's enabled of
 
 Run the following scripts separately against that generated note:
 
-| Script                    | Coverage                                                                    |
-| ------------------------- | --------------------------------------------------------------------------- |
-| `tests/live-qa.js`        | Core creation, display, colors, merges, clipboard, settings, and history.   |
-| `tests/native-qa.js`      | Native selection/menu compatibility and scoped Fileclass filtering.         |
-| `tests/focus-qa.js`       | Selection boundaries and submenu hover behavior.                            |
-| `tests/movement-qa.js`    | Row/column moves, duplicate values, and style identity.                     |
-| `tests/stability-qa.js`   | Layout frames, inline diagonal continuity, and saved-format order.          |
-| `tests/menu-color-qa.js`  | Applicable menu actions and color previews.                                 |
-| `tests/settings-qa.js`    | Real settings UI, validation, saved formats, and favorites.                 |
-| `tests/integration-qa.js` | Native emphasis, exclusive styles, value formats, colors, and rating width. |
-| `tests/theme-menu-qa.js`  | Theme foreground priority and conditional original-value actions.           |
-| `tests/merge-fit-qa.js`   | Automatic merged-cell height, wrapping, async content, and undo/redo.       |
-| `tests/lifecycle-qa.js`   | Disable/enable cleanup, source preservation, and settings restoration.      |
+| Script                     | Coverage                                                                                  |
+| -------------------------- | ----------------------------------------------------------------------------------------- |
+| `tests/live-qa.js`         | Core creation, display, colors, merges, clipboard, settings, and history.                 |
+| `tests/native-qa.js`       | Native selection/menu compatibility and scoped Fileclass filtering.                       |
+| `tests/focus-qa.js`        | Selection boundaries and submenu hover behavior.                                          |
+| `tests/movement-qa.js`     | Row/column moves, duplicate values, and style identity.                                   |
+| `tests/stability-qa.js`    | Layout frames, inline diagonal continuity, and saved-format order.                        |
+| `tests/menu-color-qa.js`   | Applicable menu actions and color previews.                                               |
+| `tests/settings-qa.js`     | Real settings UI, validation, saved formats, and favorites.                               |
+| `tests/integration-qa.js`  | Native emphasis, exclusive styles, value formats, colors, and rating width.               |
+| `tests/theme-menu-qa.js`   | Theme foreground priority and conditional original-value actions.                         |
+| `tests/clear-format-qa.js` | Native Clear formatting, value/color cleanup, scoped selection, structure, and undo/redo. |
+| `tests/merge-fit-qa.js`    | Automatic merged-cell height, wrapping, async content, and undo/redo.                     |
+| `tests/lifecycle-qa.js`    | Disable/enable cleanup, source preservation, and settings restoration.                    |
 
 Settings checks restore their original values. Lifecycle QA temporarily disables and re-enables the plugin. Use a development vault and the generated note for these checks.
 
@@ -73,4 +74,4 @@ Keep user notes, plugin settings, dependency directories, QA output, development
 
 ## Documentation media
 
-The English and Korean READMEs use the same five numbered media slots. Replace each visible `[#N here]` line with an image embed after adding the corresponding file under `assets/readme/`. HTML comments beside the slots contain suggested filenames and alt text. Existing relative links in this document are interpreted from the repository root when they are commands or filesystem paths.
+The English and Korean READMEs share the logo and six media files under `assets/readme/`. Keep the relative image paths in sync when renaming files, and commit that directory with both READMEs. GIFs are stored as their original animated files. These documentation assets are separate from the three plugin installation files. Existing relative links in this document are interpreted from the repository root when they are commands or filesystem paths.

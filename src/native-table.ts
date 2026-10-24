@@ -59,6 +59,29 @@ export interface MenuDOM {
   sections?: string[];
 }
 
+interface ClearFormatItem {
+  section?: string;
+  callback?: (event: MouseEvent | KeyboardEvent) => unknown;
+  onClick?: (callback: (event: MouseEvent | KeyboardEvent) => unknown) => unknown;
+  setDisabled?: (disabled: boolean) => unknown;
+}
+/** Extend the existing localized native action without replacing its item or
+ * native callback. Match the native section rather than the translated title. */
+export function extendClearFormatting(
+  menu: { items?: ClearFormatItem[] },
+  run: (native: () => unknown) => unknown,
+  enabled: boolean,
+): void {
+  if (!enabled) return;
+  const item = menu.items?.find((entry) =>
+    /^selection(?:\.format)?\.danger$/.test(entry.section ?? ''),
+  );
+  const callback = item?.callback;
+  if (!item?.onClick || !callback) return;
+  item.setDisabled?.(false);
+  item.onClick((event) => run(() => callback.call(item, event)));
+}
+
 /** Put the plugin's format section between native advanced and clear-format
  * groups without recreating any native item, callback, or submenu. */
 export function placeFormatGroup(menu: MenuDOM, section: string): void {

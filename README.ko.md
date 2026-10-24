@@ -1,19 +1,16 @@
+![옵시디언을 위한 Good Tables](assets/readme/logo.png)
+
 # Good Tables
 
 **옵시디언 표를 더 보기 좋게.**
 
-[![Version 1.0.0](https://img.shields.io/badge/version-1.0.0-7C3AED?style=flat-square)](https://github.com/MEKBANSUKOZINGER/Good-Tables/releases)
-![Obsidian 1.14.4 이상](https://img.shields.io/badge/Obsidian-1.14.4%2B-483699?style=flat-square)
-![데스크톱 전용](https://img.shields.io/badge/platform-desktop-2563EB?style=flat-square)
-[![MIT 라이선스](https://img.shields.io/badge/license-MIT-16A34A?style=flat-square)](LICENSE)
+[![Version 1.0.0](https://img.shields.io/badge/version-1.0.0-7C3AED?style=flat-square)](https://github.com/MEKBANSUKOZINGER/Good-Tables/releases) ![Obsidian 1.14.4 이상](https://img.shields.io/badge/Obsidian-1.14.4%2B-483699?style=flat-square) ![데스크톱 전용](https://img.shields.io/badge/platform-desktop-2563EB?style=flat-square) [![MIT 라이선스](https://img.shields.io/badge/license-MIT-16A34A?style=flat-square)](LICENSE) [![Ko-fi로 후원하기](https://img.shields.io/badge/Buy%20me%20a%20Coffee-FF5E5B?style=flat-square&logo=kofi&logoColor=white)](https://ko-fi.com/mekbansukozinger)
 
 [설치하기](#-설치) · [주요 기능](#-표에-표현을-더하세요) · [English](README.md) · [변경 기록](CHANGELOG.md) · [문제 제보](https://github.com/MEKBANSUKOZINGER/Good-Tables/issues)
 
 기존 표와 새 Markdown 표에 **색상·별점·계산 막대·날짜·병합·대각선 제목**을 더하세요. 익숙한 옵시디언 기본 표 편집기에서 선택·행과 열 이동·실행 취소를 그대로 사용합니다.
 
-<!-- #1: 아래 자리표시자를 ![Good Tables 전체 모습](assets/readme/overview.png) 으로 교체하세요. -->
-
-[#1 here]
+![값 서식·색상·병합·대각선 제목을 적용한 Good Tables 전체 모습](assets/readme/overview.png)
 
 ---
 
@@ -21,11 +18,27 @@
 
 | 기능                 | 할 수 있는 일                                                              |
 | -------------------- | -------------------------------------------------------------------------- |
+| **빠른 표 생성**     | 명령 팔레트·리본·사용자 단축키로 행과 열 수를 정해 표를 만듭니다.          |
 | **값 서식**          | 비율·계산 비율·가로 막대·날짜·시각·별점·접두사와 접미사로 값을 표시합니다. |
 | **색상과 제목**      | 제목 행·열과 칸 색상을 지정하고 자주 쓰는 색을 6개까지 저장합니다.         |
 | **병합과 대각선**    | 원본 값을 보존하며 직사각형을 병합하거나 첫 칸의 양쪽에 직접 입력합니다.   |
 | **기본 편집**        | 원본 값을 수정하고 서식과 함께 행·열을 옮기며 실행 취소·재실행합니다.      |
 | **나에게 맞는 설정** | 자주 쓰는 서식의 순서와 표시 기본값을 바꾸고 영어·한국어를 선택합니다.     |
+
+## ⚡ 행과 열 수만 정하면 표 완성
+
+Markdown 문법을 직접 입력하지 않고 기본 표를 만드세요. 전체 행·열 수를 정하고 첫 칸 대각선을 선택하면 현재 커서 위치에 표가 들어갑니다.
+
+1. 편집 가능한 노트에서 표를 넣을 위치에 커서를 놓으세요.
+2. 명령 팔레트에서 **Good Tables: 표 만들기**를 실행하거나 왼쪽 리본의 **표 아이콘**을 누르세요.
+3. **행**과 **열** 수를 정하고, 필요하면 **첫 칸 대각선**을 켜세요.
+4. **적용**을 누르고 내용을 입력하세요.
+
+행·열 수는 표 전체 크기입니다. **3행 × 4열이면 총 12칸**이 생성됩니다. 제목 행이나 열은 자동으로 지정하지 않으며, 필요할 때 직접 설정합니다.
+
+더 빠르게 실행하려면 옵시디언 **단축키** 설정에서 **Good Tables: 표 만들기**에 원하는 키를 지정하세요.
+
+![행과 열 수를 지정해 표를 생성하는 모습](assets/readme/create-table.gif)
 
 ## 🖍️ 기본 서식 메뉴에서 바로
 
@@ -35,10 +48,9 @@
 - 다른 서식을 선택하면 교체하고 같은 서식을 다시 선택하면 해제합니다.
 - 일부에만 서식이 있거나 서로 다른 서식이 섞인 범위도 한 번에 바꿉니다.
 - 자주 쓰는 접두사·접미사 서식을 등록하고 메뉴 순서를 정하세요. 일반 **사용자 지정**은 Good Tables 서식 목록의 맨 아래에 유지됩니다.
+- **서식 지우기**로 값 서식과 개별 색상을 함께 지우세요. 병합·대각선·제목 지정·칸 크기는 유지됩니다.
 
-<!-- #2: 아래 자리표시자를 ![값 서식 적용과 원본 편집](assets/readme/formatting.gif) 으로 교체하세요. -->
-
-[#2 here]
+![비율·날짜·사용자 지정 서식을 적용하는 모습](assets/readme/formatting.gif)
 
 ### 이렇게 표시됩니다
 
@@ -64,9 +76,7 @@
 
 병합 칸을 더블클릭하거나 **원본 값 편집**으로 기준 칸을 수정할 수 있습니다. 제목 영역과 일반 영역을 가로지르는 병합은 지원하지 않습니다.
 
-<!-- #3: 아래 자리표시자를 ![원본 값을 유지하는 병합과 병합 취소](assets/readme/merge-unmerge.gif) 으로 교체하세요. -->
-
-[#3 here]
+![원본 값을 보존하며 칸을 병합하고 취소하는 모습](assets/readme/merge-unmerge.gif)
 
 ## ◩ 대각선 칸에 직접 입력
 
@@ -74,9 +84,7 @@
 
 대각선을 끄면 아래쪽 값과 위쪽 값이 추가 공백 없이 연결됩니다.
 
-<!-- #4: 아래 자리표시자를 ![대각선 칸의 인라인 입력](assets/readme/diagonal.gif) 으로 교체하세요. -->
-
-[#4 here]
+![대각선 칸의 양쪽에 직접 입력하는 모습](assets/readme/diagonal.gif)
 
 ## 🎨 색을 보면서 고르세요
 
@@ -87,9 +95,7 @@
 - 가로 막대의 기본 색이나 개별 색을 선택할 수 있고 모든 막대는 **25% 반투명**을 유지합니다.
 - 표시 설정을 바꾸면 기존 표도 즉시 바뀝니다.
 
-<!-- #5: 아래 자리표시자를 ![현재 색과 선택 색을 비교하는 색상 선택기](assets/readme/color-picker.png) 으로 교체하세요. -->
-
-[#5 here]
+![현재 색·선택 색과 RGB·HEX를 보여주는 색상 선택기](assets/readme/color-picker.png)
 
 ## 🚀 설치
 

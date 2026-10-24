@@ -1,3 +1,4 @@
+import { history, undo, redo } from '@codemirror/commands';
 import { test } from 'node:test';
 import { canFormat, selectionActions } from '../src/menu-state';
 import assert from 'node:assert/strict';
@@ -22,6 +23,8 @@ import {
 import {
   applyFormat,
   colorCells,
+  clearCellFormatting,
+  hasCellFormatting,
   editCell,
   mergeCells,
   numeric,
@@ -32,8 +35,8 @@ import {
   unmergeCells,
 } from '../src/operations';
 import { displayCell, formatTable } from '../src/formats';
-import { EditorState, Transaction } from '@codemirror/state';
-import { metadataSynchronization } from '../src/metadata-sync';
+import { EditorState, Transaction, TransactionSpec } from '@codemirror/state';
+import { metadataSynchronization, withNativeClearFormatting } from '../src/metadata-sync';
 import { nativeMovement } from '../src/native-table';
 import { inlineCell, exclusiveInline } from '../src/inline';
 const settings = () => structuredClone(DEFAULTS);
@@ -922,4 +925,153 @@ test('a 5000-cell calculation pass produces the expected percentages for every c
   const display = formatTable(rows, m, DEFAULTS);
   for (let r = 0; r < 100; r++)
     for (let c = 0; c < 50; c++) assert.equal(display(r, c).text, '0.02%');
+});
+
+test('clear formatting removes selected value and color properties while retaining structural metadata', () => {
+  const rows = [
+      ['A', 'B'],
+      ['1', '2'],
+    ],
+    m = makeMetadata(rows);
+  Object.assign(m.cells[0][0], {
+    format: { kind: 'rating', group: 'g' },
+    background: '#112233',
+    color: '#445566',
+    titleBackground: '#778899',
+    titleColor: '#aabbcc',
+    barColor: '#abcdef',
+  });
+  m.cells[1][1].format = { kind: 'percent', group: 'other' };
+  m.headerRows = [0];
+  m.headerCols = [1];
+  m.merges = [{ r0: 0, r1: 0, c0: 0, c1: 1 }];
+  m.diagonal = { lower: 'A', upper: 'B' };
+  m.widths[0] = 150;
+  m.heights[0] = 40;
+  const before = structuredClone(m),
+    id = m.cells[0][0].id;
+  assert.equal(hasCellFormatting(m, cell), true);
+  clearCellFormatting(m, cell);
+  assert.deepEqual(m.cells[0][0], { id });
+  assert.equal(hasCellFormatting(m, cell), false);
+  assert.deepEqual(m.cells[1], before.cells[1]);
+  for (const key of [
+    'snapshot',
+    'headerRows',
+    'headerCols',
+    'merges',
+    'diagonal',
+    'widths',
+    'heights',
+  ] as const)
+    assert.deepEqual(m[key], before[key]);
+});
+
+function clearFixture(raw = '**4**') {
+  const rows = [[raw, '3']],
+    m = makeMetadata(rows);
+  Object.assign(m.cells[0][0], {
+    format: { kind: 'rating', group: 'g', scope: 'cell' },
+    color: '#abcdef',
+    background: '#123456',
+  });
+  m.cells[0][1].format = { kind: 'percent', group: 'other' };
+  let state = EditorState.create({
+    doc: serializeRows(rows) + '\n\n' + metadataBlock(m),
+    extensions: metadataSynchronization(),
+  });
+  let count = 0;
+  const editor = {
+    get state() {
+      return state;
+    },
+    dispatch(spec: TransactionSpec) {
+      count++;
+      state = state.update(spec).state;
+    },
+  };
+  return { editor, m, count: () => count, table: () => scanTables(state.doc.toString())[0] };
+}
+
+test('native clear and metadata changes share one transaction and preserve native selection', () => {
+  const f = clearFixture();
+  const result = withNativeClearFormatting(f.editor, f.m.id, cell, () => {
+    const t = f.table(),
+      at = f.editor.state.doc.toString().indexOf('**4**');
+    f.editor.dispatch({
+      changes: { from: at, to: at + 5, insert: '4' },
+      selection: { anchor: at, head: at + 1 },
+      userEvent: 'input',
+    });
+    return 'native-result';
+  });
+  assert.equal(result, 'native-result');
+  assert.equal(f.count(), 1);
+  assert.deepEqual(f.table().metadata!.cells[0][0], { id: f.m.cells[0][0].id });
+  assert.deepEqual(f.table().metadata!.cells[0][1], f.m.cells[0][1]);
+  assert.equal(f.editor.state.selection.main.to - f.editor.state.selection.main.from, 1);
+  assert.equal(values(f.table())[0][0], '4');
+});
+
+test('native clear removes display-only formats even without any native text transaction', () => {
+  const f = clearFixture('4');
+  let called = 0;
+  withNativeClearFormatting(f.editor, f.m.id, cell, () => called++);
+  assert.equal(called, 1);
+  assert.equal(f.count(), 1);
+  assert.equal(f.table().metadata!.cells[0][0].format, undefined);
+  assert.deepEqual(values(f.table()), [['4', '3']]);
+  f.editor.dispatch({ selection: { anchor: 0 } });
+  assert.equal(
+    f.table().metadata!.cells[0][1].format?.kind,
+    'percent',
+    'Clear intent must not leak',
+  );
+});
+
+test('native cell-local undo and redo restore and clear value formats plus colors together', () => {
+  const f = clearFixture();
+  const replace = (raw: string, userEvent: string) => {
+    const t = f.table();
+    f.editor.dispatch({
+      changes: { from: t.from, to: t.to, insert: serializeRows([[raw, '3']]) },
+      userEvent,
+    });
+    return f.table().metadata!.cells[0][0];
+  };
+  withNativeClearFormatting(f.editor, f.m.id, cell, () => replace('4', 'input'));
+  assert.equal(replace('**4**', 'undo').format?.kind, 'rating');
+  assert.equal(f.table().metadata!.cells[0][0].color, '#abcdef');
+  assert.equal(f.table().metadata!.cells[0][0].background, '#123456');
+  assert.deepEqual(replace('4', 'redo'), { id: f.m.cells[0][0].id });
+  assert.equal(
+    replace('**4**', 'input').format,
+    undefined,
+    'Manual emphasis must not resurrect cleared formats',
+  );
+});
+
+test('clear formatting remains one undo step without absorbing an earlier native edit', () => {
+  const m = makeMetadata([['4']]);
+  m.cells[0][0].format = { kind: 'rating', group: 'g' };
+  let state = EditorState.create({
+    doc: 'Before\n\n' + serializeRows([['4']]) + '\n\n' + metadataBlock(m),
+    extensions: [metadataSynchronization(), history()],
+  });
+  const editor = {
+    get state() {
+      return state;
+    },
+    dispatch(tr: TransactionSpec | Transaction) {
+      state = tr instanceof Transaction ? tr.state : state.update(tr).state;
+    },
+  };
+  editor.dispatch({ changes: { from: 0, to: 6, insert: 'Changed' }, userEvent: 'input' });
+  withNativeClearFormatting(editor, m.id, cell, () => editor.dispatch({ changes: [] }));
+  assert.equal(scanTables(state.doc.toString())[0].metadata!.cells[0][0].format, undefined);
+  assert.equal(undo(editor), true);
+  assert.equal(scanTables(state.doc.toString())[0].metadata!.cells[0][0].format?.kind, 'rating');
+  assert.equal(state.doc.toString().startsWith('Changed'), true);
+  assert.equal(redo(editor), true);
+  assert.equal(scanTables(state.doc.toString())[0].metadata!.cells[0][0].format, undefined);
 });

@@ -43,6 +43,7 @@ import {
   applyFormat,
   checkRect,
   colorCells,
+  hasCellFormatting,
   editCell,
   mergeCells,
   pasteCells,
@@ -61,12 +62,13 @@ import {
   afterNativeContextMenu,
   appendMenuGroup,
   filterTableMenu,
+  extendClearFormatting,
   placeFormatGroup,
   nativeMovement,
   MenuDOM,
   nativeSelection,
 } from './native-table';
-import { metadataSynchronization } from './metadata-sync';
+import { metadataSynchronization, withNativeClearFormatting } from './metadata-sync';
 
 const FORMAT_ICONS: Record<FormatKind, string> = {
   percent: 'percent',
@@ -965,6 +967,23 @@ export default class GoodTables extends Plugin {
         checked,
       );
     };
+    const nativeItem = (
+      menu as Menu & { items?: (MenuItem & { section?: string; submenu?: Menu })[] }
+    ).items?.find(
+      (entry) =>
+        (entry.section === 'selection' || entry.section === 'selection.format') && entry.submenu,
+    );
+    if (nativeItem?.submenu)
+      extendClearFormatting(
+        nativeItem.submenu as Menu & {
+          items?: (MenuItem & {
+            section?: string;
+            callback?: (event: MouseEvent | KeyboardEvent) => unknown;
+          })[];
+        },
+        (native) => withNativeClearFormatting(binding.cm, m.id, binding.rect, native),
+        hasCellFormatting(m, binding.rect),
+      );
     if (actions.format && availableFormats.length) {
       const build = (target: Menu) => {
         for (const id of availableFormats) {
@@ -973,12 +992,6 @@ export default class GoodTables extends Plugin {
           else addFormat(target, id as FormatKind);
         }
       };
-      const nativeItem = (
-        menu as Menu & { items?: (MenuItem & { section?: string; submenu?: Menu })[] }
-      ).items?.find(
-        (entry) =>
-          (entry.section === 'selection' || entry.section === 'selection.format') && entry.submenu,
-      );
       if (nativeItem?.submenu) {
         build(nativeItem.submenu);
         placeFormatGroup(nativeItem.submenu as Menu & MenuDOM, 'good-tables');

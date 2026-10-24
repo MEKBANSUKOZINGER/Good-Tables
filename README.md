@@ -1,16 +1,16 @@
+![Good Tables for Obsidian](assets/readme/logo.png)
+
 # Good Tables
 
 **Make your Obsidian tables easier to read.**
 
-[![Version 1.0.0](https://img.shields.io/badge/version-1.0.0-7C3AED?style=flat-square)](https://github.com/MEKBANSUKOZINGER/Good-Tables/releases)
-![Obsidian 1.14.4 or later](https://img.shields.io/badge/Obsidian-1.14.4%2B-483699?style=flat-square)
-![Desktop only](https://img.shields.io/badge/platform-desktop-2563EB?style=flat-square)
-[![MIT license](https://img.shields.io/badge/license-MIT-16A34A?style=flat-square)](LICENSE)
+[![Version 1.0.0](https://img.shields.io/badge/version-1.0.0-7C3AED?style=flat-square)](https://github.com/MEKBANSUKOZINGER/Good-Tables/releases) ![Obsidian 1.14.4 or later](https://img.shields.io/badge/Obsidian-1.14.4%2B-483699?style=flat-square) ![Desktop only](https://img.shields.io/badge/platform-desktop-2563EB?style=flat-square) [![MIT license](https://img.shields.io/badge/license-MIT-16A34A?style=flat-square)](LICENSE) [![Buy me a Coffee](https://img.shields.io/badge/Buy%20me%20a%20Coffee-FF5E5B?style=flat-square&logo=kofi&logoColor=white)](https://ko-fi.com/mekbansukozinger)
 
 [Get started](#-installation) · [See the features](#-features-at-a-glance) · [한국어](README.ko.md) · [Changelog](CHANGELOG.md) · [Report an issue](https://github.com/MEKBANSUKOZINGER/Good-Tables/issues)
 
 Give existing and new Markdown tables **colors, ratings, calculated bars, dates, merged cells, and diagonal headings**. Work in Obsidian's native table editor, with familiar selection, row/column handles, and undo/redo.
 
+![Good Tables overview with value formats, colors, merged cells, and a diagonal heading](assets/readme/overview.png)
 
 ---
 
@@ -18,11 +18,27 @@ Give existing and new Markdown tables **colors, ratings, calculated bars, dates,
 
 | Feature                  | What you can do                                                                                      |
 | ------------------------ | ---------------------------------------------------------------------------------------------------- |
+| **Quick table creation** | Choose rows and columns from the command palette, ribbon, or a custom shortcut.                      |
 | **Value formats**        | Show percentages, calculated shares, bars, dates, times, stars, and custom prefixes or suffixes.     |
 | **Color and titles**     | Mark title rows or columns, choose cell colors, and save six favorite colors.                        |
 | **Merges and diagonals** | Merge rectangular ranges while retaining their contents, or type into both halves of the first cell. |
 | **Native editing**       | Edit original values, move rows and columns with their styles, and use Obsidian's history.           |
 | **Your preferences**     | Reorder saved formats, change display defaults, and use English or Korean.                           |
+
+## ⚡ Create tables in seconds
+
+Create a native Markdown table without typing its syntax. Choose the total number of rows and columns, optionally add a diagonal first cell, and insert it at your cursor.
+
+1. Place your cursor where you want the table in an editable note.
+2. Open the command palette and run **Good Tables: Create table**, or click the **table icon** in the left ribbon.
+3. Set **Rows** and **Columns**, and optionally enable **Diagonal first cell**.
+4. Click **Apply** and start entering your data.
+
+Row and column counts describe the whole table: **3 rows × 4 columns creates 12 cells**. Good Tables does not automatically assign title rows or columns; choose those yourself when you need them.
+
+For quicker access, assign your own shortcut to **Good Tables: Create table** in Obsidian's **Hotkeys** settings.
+
+![Create a table with chosen rows and columns](assets/readme/create-table.gif)
 
 ## 🖍️ Format values from the native menu
 
@@ -32,10 +48,9 @@ Select cells, right-click, and open Obsidian's **Format** submenu. Good Tables f
 - Choose another format to replace it; choose the same format again to remove it.
 - Change a mixed or partially formatted range in one action.
 - Save your own prefix/suffix formats and give each one a place in the menu. The general **Custom** entry stays last among Good Tables formats.
+- Use **Clear formatting** to remove value formats and individual colors together. Merges, diagonals, title assignments, and dimensions stay in place.
 
-<!-- #2: Replace the placeholder below with ![Apply and edit table formats](assets/readme/formatting.gif) -->
-
-[#2 here]
+![Apply percentages, dates, and custom table formats](assets/readme/formatting.gif)
 
 ### A few examples
 
@@ -61,9 +76,7 @@ Merged cells wrap their content and automatically grow or shrink in height as yo
 
 Double-click a merged cell, or choose **Edit original values**, to edit its anchor. Merges cannot cross the boundary between title and ordinary cells.
 
-<!-- #3: Replace the placeholder below with ![Merge and unmerge without losing cell contents](assets/readme/merge-unmerge.gif) -->
-
-[#3 here]
+![Merge and unmerge while retaining the original cell values](assets/readme/merge-unmerge.gif)
 
 ## ◩ Type directly into a diagonal heading
 
@@ -71,9 +84,7 @@ Turn on **Diagonal first cell** and type into the **lower-left** and **upper-rig
 
 Turning the diagonal off joins the lower and upper values without an added space.
 
-<!-- #4: Replace the placeholder below with ![Edit a diagonal heading in place](assets/readme/diagonal.gif) -->
-
-[#4 here]
+![Type directly into both halves of a diagonal cell](assets/readme/diagonal.gif)
 
 ## 🎨 Choose colors you can see
 
@@ -84,9 +95,7 @@ Use a visible saturation/brightness surface and hue strip, synchronized with **H
 - Choose a default bar color or change it for selected bar cells. Every bar color retains **25% opacity**.
 - Existing tables update when you change the display settings.
 
-<!-- #5: Replace the placeholder below with ![Color picker with current and selected color previews](assets/readme/color-picker.png) -->
-
-[#5 here]
+![Compare current and selected colors with RGB and HEX controls](assets/readme/color-picker.png)
 
 ## 🚀 Installation
 

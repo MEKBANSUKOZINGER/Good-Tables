@@ -10,6 +10,7 @@ import {
   afterNativeContextMenu,
   appendMenuGroup,
   filterTableMenu,
+  extendClearFormatting,
   nativeSelection,
   placeFormatGroup,
 } from '../src/native-table';
@@ -876,4 +877,55 @@ test('late merged Markdown content triggers sizing and disposed renderers releas
   content.textContent = 'after dispose';
   await new Promise((resolve) => setTimeout(resolve, 10));
   assert.equal(table.rows[0].cells[0].style.getPropertyValue('--gt-merge-content-height'), '');
+});
+
+test('native clear action keeps its item, localized title, callback context and event', () => {
+  const event = { type: 'click' } as MouseEvent;
+  const calls: string[] = [];
+  const native = {
+    section: 'selection.format.danger',
+    title: '서식 지우기',
+    disabled: true,
+    callback(this: unknown, evt: unknown): unknown {
+      assert.equal(this, native);
+      assert.equal(evt, event);
+      calls.push('native');
+      return 7;
+    },
+    onClick(fn: (event: MouseEvent) => unknown) {
+      this.callback = fn;
+    },
+    setDisabled(v: boolean) {
+      this.disabled = v;
+    },
+  };
+  const untouched = { section: 'selection.format.basic', callback: () => calls.push('bold') };
+  const menu = { items: [untouched, native] },
+    before = untouched.callback;
+  extendClearFormatting(
+    menu,
+    (run) => {
+      calls.push('plugin');
+      return run();
+    },
+    true,
+  );
+  assert.equal(menu.items[1], native);
+  assert.equal(native.title, '서식 지우기');
+  assert.equal(native.disabled, false);
+  assert.equal(native.callback(event), 7);
+  assert.deepEqual(calls, ['plugin', 'native']);
+  assert.equal(untouched.callback, before);
+  const callback = native.callback;
+  extendClearFormatting(
+    menu,
+    () => {
+      throw Error('must not run');
+    },
+    false,
+  );
+  assert.equal(native.callback, callback);
+  const alternate = { ...native, section: 'selection.danger' };
+  extendClearFormatting({ items: [alternate] }, (run) => run(), true);
+  assert.notEqual(alternate.callback, callback);
 });
