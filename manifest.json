@@ -1,7 +1,7 @@
 {
   "id": "good-tables",
   "name": "Good Tables",
-  "version": "0.2.4",
+  "version": "0.2.3",
   "minAppVersion": "1.14.4",
   "description": "Enhance native Markdown tables with formats, colors, diagonal cells and reversible merges.",
   "author": "MEKBANSUKOZINGER",

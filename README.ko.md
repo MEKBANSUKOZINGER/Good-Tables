@@ -1,6 +1,6 @@
 # Good Tables
 
-기존 Markdown 표에 서식·색상·대각선·병합 기능을 추가하는 Obsidian 데스크톱 플러그인입니다. 기본 표 편집기를 유지합니다. 버전 0.2.4는 Obsidian 1.14.4 이상을 대상으로 합니다.
+기존 Markdown 표에 서식·색상·대각선·병합 기능을 추가하는 Obsidian 데스크톱 플러그인입니다. 기본 표 편집기를 유지합니다. 버전 0.2.3은 Obsidian 1.14.4 이상을 대상으로 합니다.
 
 [English](README.md) · [변경 기록](CHANGELOG.md)
 
@@ -10,7 +10,7 @@
 
 이동으로 병합이 직사각형을 이루지 못하면 해당 병합만 취소하고 모든 원본 칸과 서식을 유지합니다. 대각선 칸이 첫 칸에서 벗어나면 대각선 표시는 해제하고 연결된 원본 텍스트를 유지합니다. 이 변화도 이동과 함께 실행 취소됩니다.
 
-0.2.4에서는 Good Tables 글자색을 지정한 칸의 굵게·기울임·하이라이트·병합 내용에도 그 색을 우선 적용합니다. 색을 해제하면 스킨 색으로 돌아갑니다. Good Tables 서식·색상·제목·병합·대각선이 없는 일반 선택에서는 **원본 값 복사 / 편집** 메뉴를 숨깁니다. 옵시디언 기본 복사·편집은 그대로 사용합니다.
+0.2.3에서는 Good Tables 글자색을 지정한 칸의 굵게·기울임·하이라이트·병합 내용에도 그 색을 우선 적용합니다. 색을 해제하면 스킨 색으로 돌아갑니다. Good Tables 서식·색상·제목·병합·대각선이 없는 일반 선택에서는 **원본 값 복사 / 편집** 메뉴를 숨깁니다. 옵시디언 기본 복사·편집은 그대로 사용합니다.
 
 ## 사용
 
@@ -39,7 +39,7 @@
 
 색상 선택 창에는 채도·밝기 영역과 색조 막대가 바로 표시되며 HEX·RGB 입력이 함께 바뀝니다. **새 표 기본값**에는 행·열 수와 첫 칸 대각선만 남기고, 나머지는 **표 설정**으로 묶었습니다. 제목 배경·글자 색은 HEX 입력란과 색 선택기를 제공합니다. 자주 쓰는 사용자 서식은 서식 메뉴에 개별 항목으로 나타나며 **서식 메뉴 순서**에서 각각 이동할 수 있습니다.
 
-[GitHub Releases](https://github.com/MEKBANSUKOZINGER/Good-Tables/releases)에서 `main.js`, `manifest.json`, `styles.css` 세 파일을 받아 볼트의 `.obsidian/plugins/good-tables/`에 복사하고 Obsidian에서 활성화합니다. 설치용 `good-tables-0.2.4.zip`에는 같은 파일들이 `good-tables/` 폴더에 들어 있습니다. GitHub가 자동 생성하는 소스 압축 파일은 먼저 빌드해야 합니다.
+[GitHub Releases](https://github.com/MEKBANSUKOZINGER/Good-Tables/releases)에서 `main.js`, `manifest.json`, `styles.css` 세 파일을 받아 볼트의 `.obsidian/plugins/good-tables/`에 복사하고 Obsidian에서 활성화합니다. 설치용 `good-tables-0.2.3.zip`에는 같은 파일들이 `good-tables/` 폴더에 들어 있습니다. GitHub가 자동 생성하는 소스 압축 파일은 먼저 빌드해야 합니다.
 
 소스에서 직접 빌드하려면 다음 명령을 실행합니다.
 
