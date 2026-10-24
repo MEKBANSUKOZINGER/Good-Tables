@@ -114,6 +114,28 @@
 .gt-merge-overlay {
   display: flex;
   align-items: center;
+  overflow: visible;
+}
+.gt-table .gt-merge-anchor::before {
+  content: '';
+  float: left;
+  width: 0;
+  height: var(--gt-merge-content-height, 0px);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  pointer-events: none;
+}
+.gt-merge-content {
+  display: flow-root;
+  flex: none;
+  width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.gt-merge-content :is(pre, code) {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 .gt-merge-content > :first-child {
   margin-top: 0;

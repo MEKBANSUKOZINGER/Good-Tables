@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.0 — 2026-10-24
+
+- Mark the first stable release of Good Tables with the reviewed native-table formatting, colors, merges, and inline diagonal editing.
+- Introduce English and Korean feature guides with numbered screenshot/GIF slots, installation steps, examples, and expandable compatibility details.
+- Move build, local-installation, live-QA, and release instructions to docs/DEVELOPMENT.md.
+- Automatically size merged cells to fit wrapped and multiline content, recalculate after edits, column resizing, or asynchronous Markdown rendering, and release the extra height when content shrinks or a merge is removed.
+- Update release metadata and installation files to 1.0.0.
+
+Validation: 73 automated tests and 89 live-app QA scenarios passed on Obsidian 1.14.5, including 8 focused merged-height checks. Screenshots/GIFs must replace the five numbered media slots before publishing the completed README.
+
 ## 0.2.4 — 2026-10-24
 
 - Update the plugin version and installation packages to 0.2.4.

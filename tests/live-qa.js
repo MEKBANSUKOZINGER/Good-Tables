@@ -200,7 +200,7 @@
       assert(meta().diagonal, 'Diagonal not enabled');
       await menu({ r0: 0, r1: 0, c0: 0, c1: 0 }, 'cell', 0, 0);
       await click('원본 값 편집');
-      const fields = document.querySelectorAll('.gt-diagonal-overlay textarea');
+      const fields = view.containerEl.querySelectorAll('.gt-diagonal-overlay textarea');
       assert(fields.length === 2, 'Diagonal inputs missing');
       fields[0].value = '아래';
       fields[0].dispatchEvent(new InputEvent('input', { bubbles: true }));

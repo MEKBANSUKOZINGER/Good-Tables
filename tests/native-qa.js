@@ -192,35 +192,44 @@
     view.editor.setCursor(0, 0);
     view.editor.focus();
     await wait();
-    let outsideMenu;
-    const outsideRef = app.workspace.on('editor-menu', (menu) => {
-      outsideMenu = menu;
-    });
-    try {
-      binding()
-        .cm.contentDOM.querySelector('.cm-line')
-        .dispatchEvent(
-          new PointerEvent('contextmenu', {
-            view: window,
-            bubbles: true,
-            cancelable: true,
-            button: 2,
-            clientX: 500,
-            clientY: 200,
-          }),
-        );
-      await wait();
-      assert(outsideMenu, 'Outside editor menu missing');
-      const outsideTitles = new Set(signature(outsideMenu).map((item) => item.title));
-      assert(
-        [...noteCommands].every((title) => outsideTitles.has(title)),
-        'Note-property menus changed outside the table',
-      );
-      results.push('Fileclass note-property menus stay available outside table cells');
-    } finally {
-      app.workspace.offref(outsideRef);
-      outsideMenu?.hide();
-    }
+    const openOutside = async (enhance) => {
+      let outsideMenu;
+      const outsideRef = app.workspace.on('editor-menu', (menu) => {
+        outsideMenu = menu;
+      });
+      p.menu = enhance ? original : () => {};
+      try {
+        binding()
+          .cm.contentDOM.querySelector('.cm-line')
+          .dispatchEvent(
+            new PointerEvent('contextmenu', {
+              view: window,
+              bubbles: true,
+              cancelable: true,
+              button: 2,
+              clientX: 500,
+              clientY: 200,
+            }),
+          );
+        await wait();
+        assert(outsideMenu, 'Outside editor menu missing');
+        return signature(outsideMenu);
+      } finally {
+        p.menu = original;
+        app.workspace.offref(outsideRef);
+        outsideMenu?.hide();
+        await wait();
+      }
+    };
+    const outsideBaseline = await openOutside(false);
+    const outsideEnhanced = await openOutside(true);
+    assert(
+      JSON.stringify(outsideEnhanced) === JSON.stringify(outsideBaseline),
+      'Ordinary note menu changed outside the table',
+    );
+    results.push(
+      'ordinary note menus, including available provider commands, remain unchanged outside table cells',
+    );
     const normalized = (source) =>
       source.replace(
         /^\|.*$/gm,

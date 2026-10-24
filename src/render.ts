@@ -31,6 +31,7 @@ interface Overlay {
   text?: string;
   cleanup?: () => void;
   geometry?: string;
+  content?: HTMLElement;
   listeners: (() => void)[];
 }
 const positionedParents = new WeakMap<
@@ -56,6 +57,8 @@ export function decorateTable(
     added = new Set<HTMLElement>();
   const displays = new Map<HTMLTableCellElement, HTMLElement>();
   const measures = new Map<HTMLTableCellElement, HTMLElement>();
+  const mergeHeights = new Map<HTMLTableCellElement, string>();
+  let layoutFrame: number | undefined;
   const displayKeys = new WeakMap<HTMLElement, string>();
   const fillDisplay = (element: HTMLElement, text: string, raw: string) => {
     const presentation = inlineCell(raw),
@@ -126,6 +129,20 @@ export function decorateTable(
     }
     ownership.count++;
   }
+  const applyProperty = (cell: HTMLElement, property: string, value: string) => {
+    const state = originals.get(cell)!;
+    const current = cell.style.getPropertyValue(property);
+    let before = state.properties.get(property);
+    if (!before) {
+      before = { value: current, priority: cell.style.getPropertyPriority(property), applied: '' };
+      state.properties.set(property, before);
+    } else if (current !== before.applied) {
+      before.value = current;
+      before.priority = cell.style.getPropertyPriority(property);
+    }
+    if (current !== value) cell.style.setProperty(property, value);
+    before.applied = cell.style.getPropertyValue(property);
+  };
   const applyStyles = (cell: HTMLElement, wanted: Record<string, string>) => {
     const state = originals.get(cell)!;
     for (const [property, before] of state.properties) {
@@ -136,23 +153,7 @@ export function decorateTable(
       }
       state.properties.delete(property);
     }
-    for (const [property, value] of Object.entries(wanted)) {
-      const current = cell.style.getPropertyValue(property);
-      let before = state.properties.get(property);
-      if (!before) {
-        before = {
-          value: current,
-          priority: cell.style.getPropertyPriority(property),
-          applied: '',
-        };
-        state.properties.set(property, before);
-      } else if (current !== before.applied) {
-        before.value = current;
-        before.priority = cell.style.getPropertyPriority(property);
-      }
-      if (current !== value) cell.style.setProperty(property, value);
-      before.applied = cell.style.getPropertyValue(property);
-    }
+    for (const [property, value] of Object.entries(wanted)) applyProperty(cell, property, value);
     if (!cell.style.length && state.style === null) cell.removeAttribute('style');
   };
   const focus = () => {
@@ -275,6 +276,7 @@ export function decorateTable(
     return entry;
   };
   const clearOverlay = (id: string, entry: Overlay) => {
+    if (entry.content) observer?.unobserve(entry.content);
     entry.cleanup?.();
     entry.listeners.forEach((stop) => stop());
     remove(entry.element);
@@ -282,7 +284,7 @@ export function decorateTable(
     if (id === 'diagonal') diagonalFields = undefined;
     if (id === 'diagonal') diagonalInitialized = false;
   };
-  const layout = () => {
+  const positionOverlays = () => {
     if (!parent || dead) return;
     const p = parent.getBoundingClientRect();
     for (const entry of overlays.values()) {
@@ -301,6 +303,39 @@ export function decorateTable(
         entry.geometry = geometry;
       }
     }
+  };
+  const frameHeight = (element: HTMLElement) => {
+    const style = window.getComputedStyle(element);
+    return [
+      style.paddingTop,
+      style.paddingBottom,
+      style.borderTopWidth,
+      style.borderBottomWidth,
+    ].reduce((total, value) => total + (parseFloat(value) || 0), 0);
+  };
+  const layout = () => {
+    if (!parent || dead) return;
+    positionOverlays();
+    // A zero-width float supplies the anchor row's intrinsic minimum without
+    // changing native cell nodes or persisting a new row height. Lower rows
+    // settle first, so vertical merges can subtract their occupied height.
+    const merged = [...overlays.values()]
+      .filter((entry) => entry.content)
+      .sort((a, b) => b.rect.r0 - a.rect.r0);
+    for (const entry of merged) {
+      const anchor = cells[entry.rect.r0][entry.rect.c0];
+      const a = anchor.getBoundingClientRect();
+      if (!a.width) continue;
+      const b = cells[entry.rect.r1][entry.rect.c1].getBoundingClientRect();
+      const required = entry.content!.getBoundingClientRect().height + frameHeight(entry.element);
+      const remainingRows = Math.max(0, b.bottom - a.bottom);
+      const height = `${Math.max(0, Math.ceil(required - remainingRows - frameHeight(anchor) + 1))}px`;
+      if (mergeHeights.get(anchor) !== height) {
+        mergeHeights.set(anchor, height);
+        applyProperty(anchor, '--gt-merge-content-height', height);
+      }
+    }
+    positionOverlays();
   };
   const fillDiagonal = (entry: Overlay) => {
     if (!data?.diagonal) return;
@@ -401,10 +436,15 @@ export function decorateTable(
     const displayFor: (r: number, c: number) => Display = data
       ? formatTable(rows, data, settings)
       : (r, c) => ({ text: rows[r][c] });
+    const mergeAnchors = new Set(data?.merges.map((rect) => cells[rect.r0][rect.c0]) ?? []);
+    for (const cell of mergeHeights.keys()) if (!mergeAnchors.has(cell)) mergeHeights.delete(cell);
     for (const [r, row] of cells.entries())
       for (const [c, cell] of row.entries()) {
         cell.classList.add('gt-cell');
         const wanted: Record<string, string> = {};
+        cell.classList.toggle('gt-merge-anchor', mergeAnchors.has(cell));
+        const mergeHeight = mergeHeights.get(cell);
+        if (mergeHeight) wanted['--gt-merge-content-height'] = mergeHeight;
         const meta = data?.cells[r]?.[c],
           title = !!data && isTitle(data, r, c);
         cell.classList.toggle(
@@ -531,17 +571,16 @@ export function decorateTable(
         if (entry.text !== contentKey) {
           entry.cleanup?.();
           entry.cleanup = undefined;
+          if (entry.content) observer?.unobserve(entry.content);
           entry.element.empty();
+          const target = entry.element.createDiv({ cls: 'gt-merge-content' });
+          entry.content = target;
+          observer?.observe(target);
           if (rich) {
-            const target = entry.element.createDiv({ cls: 'gt-merge-content' });
             const cleanup = renderMarkdown?.(output.text, target);
             if (cleanup) entry.cleanup = cleanup;
           } else
-            fillDisplay(
-              entry.element,
-              output.text.replace(/<br\s*\/?>/gi, '\n'),
-              rows[rect.r0][rect.c0],
-            );
+            fillDisplay(target, output.text.replace(/<br\s*\/?>/gi, '\n'), rows[rect.r0][rect.c0]);
           entry.text = contentKey;
         }
         entry.element.classList.toggle('gt-bar', output.fraction !== undefined);
@@ -579,8 +618,28 @@ export function decorateTable(
     focus();
     layout();
   };
-  const observer = window.ResizeObserver ? new window.ResizeObserver(layout) : undefined;
+  const observer = window.ResizeObserver
+    ? new window.ResizeObserver(() => {
+        if (dead || layoutFrame !== undefined) return;
+        layoutFrame = window.requestAnimationFrame(() => {
+          layoutFrame = undefined;
+          layout();
+        });
+      })
+    : undefined;
   observer?.observe(table);
+  const contentObserver = new window.MutationObserver((records) => {
+    if (
+      records.some((record) => {
+        const target =
+          record.target.nodeType === 1 ? (record.target as Element) : record.target.parentElement;
+        return target?.closest('.gt-merge-overlay');
+      })
+    )
+      layout();
+  });
+  if (parent)
+    contentObserver.observe(parent, { subtree: true, childList: true, characterData: true });
   update(rows, data, settings);
   if (continuity?.focused && document.activeElement === document.body && data?.diagonal)
     continuity.focused.focus();
@@ -615,6 +674,8 @@ export function decorateTable(
       if (dead) return;
       dead = true;
       observer?.disconnect();
+      contentObserver.disconnect();
+      if (layoutFrame !== undefined) window.cancelAnimationFrame(layoutFrame);
       disposers.forEach((dispose) => dispose());
       for (const entry of overlays.values()) entry.cleanup?.();
       for (const element of added) element.remove();
@@ -627,6 +688,7 @@ export function decorateTable(
           'gt-selected',
           'gt-colored-background',
           'gt-colored-text',
+          'gt-merge-anchor',
         ]);
         delete cell.dataset.gtRow;
         delete cell.dataset.gtCol;

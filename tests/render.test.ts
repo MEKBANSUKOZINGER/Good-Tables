@@ -764,3 +764,116 @@ test('calculated displays refresh shared totals after native values and settings
   assert.equal(first?.textContent, '13%');
   render.dispose();
 });
+
+function mockMergeGeometry(table: ReturnType<typeof fixture>['table']) {
+  const base = 20;
+  const rowHeight = (r: number) =>
+    Math.max(
+      base,
+      ...Array.from(table.rows[r].cells, (cell) =>
+        Math.max(
+          parseFloat(cell.style.height) || 0,
+          parseFloat(cell.style.getPropertyValue('--gt-merge-content-height')) || 0,
+        ),
+      ),
+    );
+  for (let r = 0; r < table.rows.length; r++)
+    for (let c = 0; c < table.rows[r].cells.length; c++)
+      Object.defineProperty(table.rows[r].cells[c], 'getBoundingClientRect', {
+        value: () => {
+          const top = Array.from({ length: r }, (_, i) => rowHeight(i)).reduce(
+              (sum, h) => sum + h,
+              0,
+            ),
+            height = rowHeight(r);
+          return {
+            left: c * 100,
+            right: (c + 1) * 100,
+            top,
+            bottom: top + height,
+            width: 100,
+            height,
+          };
+        },
+      });
+}
+
+test('merged content grows and shrinks its native row while respecting stored minimum height', () => {
+  const { table } = fixture(),
+    before = table.outerHTML,
+    first = table.rows[0].cells[0].firstChild;
+  mockMergeGeometry(table);
+  const rows = [
+      ['A', 'B'],
+      ['1', '3'],
+    ],
+    m = makeMetadata(rows);
+  m.heights[0] = 34;
+  mergeCells(m, { r0: 0, r1: 0, c0: 0, c1: 1 });
+  const snapshot = structuredClone(m),
+    render = decorateTable(table as unknown as HTMLTableElement, rows, m, DEFAULTS);
+  const overlay = table.parentElement!.querySelector('.gt-merge-overlay')!,
+    content = overlay.querySelector('.gt-merge-content')!;
+  let natural = 50;
+  Object.defineProperty(content, 'getBoundingClientRect', { value: () => ({ height: natural }) });
+  render.refreshLayout();
+  assert.equal(overlay.getAttribute('style')?.includes('height: 51px'), true);
+  assert.equal(table.rows[0].cells[0].firstChild, first);
+  natural = 10;
+  render.refreshLayout();
+  assert.equal(overlay.getAttribute('style')?.includes('height: 34px'), true);
+  assert.deepEqual(m, snapshot, 'Automatic layout must not modify stored metadata');
+  m.merges = [];
+  render.update(rows, m, DEFAULTS);
+  assert.equal(table.rows[0].cells[0].style.getPropertyValue('--gt-merge-content-height'), '');
+  assert.equal(table.rows[0].cells[0].classList.contains('gt-merge-anchor'), false);
+  render.dispose();
+  assert.equal(table.outerHTML, before);
+});
+
+test('vertical merge sizes only the missing height and remains stable across repeated layout', () => {
+  const { table } = fixture();
+  mockMergeGeometry(table);
+  const rows = [
+      ['A', 'B'],
+      ['1', '3'],
+    ],
+    m = makeMetadata(rows);
+  mergeCells(m, { r0: 0, r1: 1, c0: 0, c1: 0 });
+  const render = decorateTable(table as unknown as HTMLTableElement, rows, m, DEFAULTS),
+    overlay = table.parentElement!.querySelector('.gt-merge-overlay')!,
+    content = overlay.querySelector('.gt-merge-content')!;
+  let natural = 80;
+  Object.defineProperty(content, 'getBoundingClientRect', { value: () => ({ height: natural }) });
+  for (let i = 0; i < 20; i++) render.refreshLayout();
+  assert.equal(overlay.getAttribute('style')?.includes('height: 81px'), true);
+  assert.equal(table.rows[0].cells[0].style.getPropertyValue('--gt-merge-content-height'), '61px');
+  natural = 30;
+  render.refreshLayout();
+  assert.equal(overlay.getAttribute('style')?.includes('height: 40px'), true);
+  render.dispose();
+});
+
+test('late merged Markdown content triggers sizing and disposed renderers release observers', async () => {
+  const { table } = fixture();
+  mockMergeGeometry(table);
+  const rows = [
+      ['A', 'B'],
+      ['1', '3'],
+    ],
+    m = makeMetadata(rows);
+  mergeCells(m, { r0: 0, r1: 0, c0: 0, c1: 1 });
+  const render = decorateTable(table as unknown as HTMLTableElement, rows, m, DEFAULTS),
+    overlay = table.parentElement!.querySelector('.gt-merge-overlay')!,
+    content = overlay.querySelector('.gt-merge-content')!;
+  Object.defineProperty(content, 'getBoundingClientRect', {
+    value: () => ({ height: content.textContent === 'late' ? 70 : 10 }),
+  });
+  content.textContent = 'late';
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  assert.equal(overlay.getAttribute('style')?.includes('height: 71px'), true);
+  render.dispose();
+  content.textContent = 'after dispose';
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  assert.equal(table.rows[0].cells[0].style.getPropertyValue('--gt-merge-content-height'), '');
+});

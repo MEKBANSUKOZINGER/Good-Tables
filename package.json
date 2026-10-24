@@ -1,6 +1,6 @@
 {
   "name": "good-tables",
-  "version": "0.2.4",
+  "version": "1.0.0",
   "private": true,
   "license": "MIT",
   "description": "Add formatting, diagonal cells and non-destructive merges to native Obsidian Markdown tables.",
@@ -10,8 +10,8 @@
     "build": "tsc --noEmit && node esbuild.config.mjs",
     "test": "node scripts/test.mjs",
     "package": "npm run build && node scripts/package.mjs",
-    "format": "prettier --write src tests scripts *.json *.mjs *.css *.md",
-    "format:check": "prettier --check src tests scripts *.json *.mjs *.css *.md",
+    "format": "prettier --write src tests scripts docs *.json *.mjs *.css *.md",
+    "format:check": "prettier --check src tests scripts docs *.json *.mjs *.css *.md",
     "lint": "eslint src --max-warnings 0"
   },
   "devDependencies": {

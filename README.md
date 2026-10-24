@@ -1,110 +1,174 @@
 # Good Tables
 
-Good Tables adds presentation and editing tools to Obsidian's native Markdown tables. It supports existing tables without replacing the native table editor.
+**Make your Obsidian tables easier to read.**
 
-Desktop only. Version **0.2.4** requires Obsidian **1.14.4 or later**. [한국어 안내](README.ko.md) · [Changelog](CHANGELOG.md).
+[![Version 1.0.0](https://img.shields.io/badge/version-1.0.0-7C3AED?style=flat-square)](https://github.com/MEKBANSUKOZINGER/Good-Tables/releases)
+![Obsidian 1.14.4 or later](https://img.shields.io/badge/Obsidian-1.14.4%2B-483699?style=flat-square)
+![Desktop only](https://img.shields.io/badge/platform-desktop-2563EB?style=flat-square)
+[![MIT license](https://img.shields.io/badge/license-MIT-16A34A?style=flat-square)](LICENSE)
 
-## Features
+[Get started](#-installation) · [See the features](#-features-at-a-glance) · [한국어](README.ko.md) · [Changelog](CHANGELOG.md) · [Report an issue](https://github.com/MEKBANSUKOZINGER/Good-Tables/issues)
 
-- Identify context-menu actions and format types by native Obsidian icons, with bookmarks for saved custom formats.
+Give existing and new Markdown tables **colors, ratings, calculated bars, dates, merged cells, and diagonal headings**. Work in Obsidian's native table editor, with familiar selection, row/column handles, and undo/redo.
 
-- Create a table at the cursor from a command, ribbon button, or user-assigned hotkey. Specify the total number of rows and columns.
-- Select rectangular ranges by dragging, or use Obsidian's original row and column handles. Good Tables reads those native ranges and adds no numbered selectors.
-- Set multiple title rows and columns, with configurable colors and reversible underlying styles.
-- Apply percentage, calculated percentage, horizontal bar, date, date/time, time, rating, and prefix/suffix formats. Edit the original values with the native editor.
-- Choose background and text colors from a visible saturation/brightness surface and hue strip, with synchronized HEX/RGB fields, document colors, and six shared favorite colors. Saved custom formats appear individually in the format menu and its order settings.
-- Merge a rectangular range while retaining every original cell. Unmerge to restore hidden contents and styles. Double-click a merged cell to edit its anchor.
-- Split the first cell diagonally and type directly into its lower-left and upper-right fields, including multiple lines. Turning the diagonal off concatenates the lower and upper values without a space.
-- Use Obsidian's native row/column tools and paste tab-separated cell ranges.
-- Undo and redo document edits using Obsidian's history. Settings update existing tables immediately.
-- Follow Obsidian's English/Korean language, or override it in settings. Other languages fall back to English.
 
-Good Tables places its formats inside Obsidian's native **Format** submenu, after Code/Math/Comment and before Clear formatting. Other Good Tables actions appear below the native menu after a separator. Native formatting, alignment, clipboard actions and other plugins' entries keep their order. Native table clipboard data is handled by Obsidian. Fileclass note-property and schema commands are omitted only inside table-cell menus; they remain available in the ordinary note editor.
+---
 
-An explicit Good Tables text color takes precedence over theme colors for bold, italic, highlighted, and merged content, including the native cell editor and reading view. Clearing that color restores theme styling. **Copy original values** and **Edit original values** are hidden for plain selections with no Good Tables formats, colors, titles, merges, or diagonal cells; native copy and editing remain available.
+## ✨ Features at a glance
 
-Only applicable Good Tables actions appear for the current selection. For example, a single cell has no Merge command, and Diagonal first cell appears only on the first corner cell. All applicable table formats remain visible, including when a format is already applied. The current format is checked; choosing another replaces it, and choosing the same one removes it. This also works for ranges with mixed formats. Saved formats can be reordered individually; the general **Custom** entry remains last among Good Tables formats. Redundant Good Tables row/column and cell-size controls have been removed; previously stored dimensions remain compatible.
+| Feature                  | What you can do                                                                                      |
+| ------------------------ | ---------------------------------------------------------------------------------------------------- |
+| **Value formats**        | Show percentages, calculated shares, bars, dates, times, stars, and custom prefixes or suffixes.     |
+| **Color and titles**     | Mark title rows or columns, choose cell colors, and save six favorite colors.                        |
+| **Merges and diagonals** | Merge rectangular ranges while retaining their contents, or type into both halves of the first cell. |
+| **Native editing**       | Edit original values, move rows and columns with their styles, and use Obsidian's history.           |
+| **Your preferences**     | Reorder saved formats, change display defaults, and use English or Korean.                           |
 
-Version 0.2.1 restores cell colors when the native editor clears inline styles on focus. The color dialog compares the current and selected colors, highlights the favorite being edited, and identifies mixed-color selections. Title background/text settings show their colors directly beside the HEX fields.
+## 🖍️ Format values from the native menu
 
-Version 0.1.3 synchronizes formatting metadata within native editing transactions. Consecutive row/column moves carry formats, colors, dimensions and title assignments, and native undo/redo restores them together. Observed native movement disambiguates identical rows and blank columns. A move that splits a merge unmerges only that region; moving the diagonal cell away from the first corner clears its first-cell-only diagonal display while preserving its raw text and styles.
+Select cells, right-click, and open Obsidian's **Format** submenu. Good Tables formats appear after **Code / Math / Comment** and before **Clear formatting**.
 
-Version 0.2.0 reuses table decoration across updates and applies changes before the next paint, avoiding temporary loss of dimensions and formatting. Focused-cell context menus wait for Obsidian's asynchronous native menu. **New table defaults** contains only rows, columns, and the diagonal switch; other table options are under **Table settings**, including editable title background/text HEX values.
+- Every applicable format stays available. The active format has a checkmark.
+- Choose another format to replace it; choose the same format again to remove it.
+- Change a mixed or partially formatted range in one action.
+- Save your own prefix/suffix formats and give each one a place in the menu. The general **Custom** entry stays last among Good Tables formats.
 
-**Bold, italic, strikethrough, and highlight** can be combined with table formats while retaining the original Markdown. Applying native **Code, Comment, or Math** removes the table format on those cells; native undo/redo restores both. Table formats are unavailable while one of those exclusive formats is present.
+<!-- #2: Replace the placeholder below with ![Apply and edit table formats](assets/readme/formatting.gif) -->
 
-Title cells support individual background and text colors, separate from their ordinary colors. Bars use the default **Bar color** in settings or an individual color chosen from the cell menu, always at 25% opacity. Rating columns grow to fit the rendered stars, including native emphasis.
+[#2 here]
 
-## Install
+### A few examples
 
-Download `main.js`, `manifest.json`, and `styles.css` from a [GitHub release](https://github.com/MEKBANSUKOZINGER/Good-Tables/releases), or build them locally. Copy all three files into `<vault>/.obsidian/plugins/good-tables/`. Reload Obsidian and enable **Good Tables** in Community plugins. The optional `good-tables-0.2.4.zip` contains the same files inside a `good-tables/` folder; GitHub's automatic source archives require building first.
+| Format           | Original value                | Display            |
+| ---------------- | ----------------------------- | ------------------ |
+| Percentage       | `25`                          | `25%`              |
+| Calculated share | `1` and `3` in the same group | `25%` and `75%`    |
+| Rating           | `4.5`                         | `★★★★☆`            |
+| Date             | `20261024`                    | `2026-10-24`       |
+| Date and time    | `202610241430`                | `2026-10-24 14:30` |
+| Time             | `1430`                        | `14:30`            |
+| Custom suffix    | `12`                          | `12 kg`            |
 
-The creation command is **Good Tables: Create table**. Assign its hotkey in Obsidian's Hotkeys settings. No hotkey is assigned automatically.
+Examples use the default display settings. Bars show each value's share of its group; their label can show the original number or its percentage.
 
-## Storage and compatibility
+**Bold, italic, strikethrough, and highlight work alongside value formats**, including all six native highlight colors. Applying **Code, Comment, or Math** removes the Good Tables value format from those cells. Native undo/redo restores both states.
 
-Cell contents remain a normal Markdown table, including hidden originals underneath merges. Extended presentation is stored immediately after the table as a block of unused Markdown reference definitions, separated from the table by a blank line. Each definition starts with `[good-tables-` and has a `good-tables:` destination. These definitions are hidden in standard Markdown reading views; Good Tables also conceals its own metadata in Live Preview. Source mode exposes the complete source.
+## 🧩 Merge, then bring every cell back
 
-Keep the reference block with its table when copying or moving it. Disabling the plugin removes its presentation layers and leaves the ordinary table and its raw contents. A first-use dialog and an unload notice explain the display change.
+Merge a rectangular selection to make a shared label or a longer note. The top-left cell supplies the visible content; the other values stay in the Markdown table. **Unmerge** reveals them again.
 
-Native table context-menu items remain available alongside Good Tables items. Native Tab navigation and ordinary editing remain in Obsidian's editor. Merged anchors use an additional editing dialog. Diagonal fields are edited in place, with IME composition, multiline input, and Obsidian undo/redo support.
+Merged cells wrap their content and automatically grow or shrink in height as you edit or resize columns.
 
-Unambiguous external row/column edits carry styles with their original cells. If simultaneous structural changes cannot be mapped reliably, the plugin preserves the stored information, stops applying it, and offers an explicit reset command. Undo the structural edit or use **Reset Good Tables information for this table**; a reset is itself undoable. Corrupt or unsupported metadata is never silently overwritten.
+Double-click a merged cell, or choose **Edit original values**, to edit its anchor. Merges cannot cross the boundary between title and ordinary cells.
 
-## Calculation rules
+<!-- #3: Replace the placeholder below with ![Merge and unmerge without losing cell contents](assets/readme/merge-unmerge.gif) -->
 
-- Numeric input accepts plain signed integers and decimals. Commas, units, percentages, exponent notation, and nonfinite numbers are rejected.
-- Calculated percentages exclude titles, blank cells, invalid values, and covered cells of a merge. Percentage formats reject negative inputs. A later negative edit displays `(!NUM)` until corrected.
-- Bars shift negative data by the minimum, then divide by the sum of the shifted values. A zero sum produces zero-length bars and 0%.
-- Date/time accepts exactly 8/12/4 digits and substitutes the configured tokens without calendar validation.
-- Ratings preserve exact halves, round other fractions to integers, and clamp to the configured maximum. Above 10, they use `★ X N` with an integer count.
+[#3 here]
 
-## Development
+## ◩ Type directly into a diagonal heading
 
-```sh
-npm ci
-npm run lint
-npm run build
-npm test
-npm run package
-```
+Turn on **Diagonal first cell** and type into the **lower-left** and **upper-right** fields in place. Both support multiple lines and IME composition.
 
-`npm run dev` watches the source. `npm run package` creates an installable `release/good-tables/` folder. Runtime dependencies are provided by Obsidian; only development dependencies are installed here.
+Turning the diagonal off joins the lower and upper values without an added space.
 
-To install a local build:
+<!-- #4: Replace the placeholder below with ![Edit a diagonal heading in place](assets/readme/diagonal.gif) -->
 
-```sh
-node scripts/install-local.mjs "<vault-path>" --enable
-```
+[#4 here]
 
-This copies the three plugin files and, only with `--enable`, appends the plugin ID to the existing enabled-plugin list. Reload the plugin/app afterward. It does not change restricted mode.
+## 🎨 Choose colors you can see
 
-For optional live QA, generate the `qa-vault/Good Tables QA.md` note with `node scripts/prepare-qa.mjs`, open that generated note in Obsidian, install the current build, and run:
+Use a visible saturation/brightness surface and hue strip, synchronized with **HEX and RGB**. Compare the current and selected colors, reuse colors from the document, or keep up to **six shared favorites** for backgrounds and text.
 
-```sh
-node scripts/obsidian-cli.mjs "<vault-name>" eval tests/live-qa.js
-```
+- Title cells support individual background and text colors.
+- Explicit text colors take priority over a theme's bold, italic, or highlight colors. Clear a color to restore the theme's styling.
+- Choose a default bar color or change it for selected bar cells. Every bar color retains **25% opacity**.
+- Existing tables update when you change the display settings.
 
-The live QA script intentionally resets and edits only that generated QA note. It requires Obsidian's enabled official CLI. On nonstandard installations, set `OBSIDIAN_CLI` to the CLI executable path. The additional `tests/lifecycle-qa.js`, `tests/theme-menu-qa.js`, `tests/integration-qa.js`, `tests/focus-qa.js`, `tests/native-qa.js`, `tests/movement-qa.js`, `tests/settings-qa.js`, `tests/stability-qa.js`, and `tests/menu-color-qa.js` scripts use the same generated QA note; open it before running each script. The CLI wrapper targets Windows installations.
+<!-- #5: Replace the placeholder below with ![Color picker with current and selected color previews](assets/readme/color-picker.png) -->
 
-No user notes, development profiles, dependency directories, or local plugin settings belong in a GitHub release.
+[#5 here]
 
-## License
+## 🚀 Installation
 
-[MIT](LICENSE) · Copyright (c) 2026 MEKBANSUKOZINGER.
+**Obsidian Desktop 1.14.4 or later** is required.
 
-## Privacy and permissions
+### Community plugins
 
-Good Tables runs locally and makes no network requests or telemetry uploads. It reads table contents and writes Markdown changes and presentation metadata through Obsidian's editor. Settings are stored through Obsidian's plugin data API.
+1. Open **Settings → Community plugins → Browse** in Obsidian.
+2. Search for **Good Tables**, then choose **Install** and **Enable**.
 
-**Clipboard access:** choosing **Copy original values** writes the selected cells' raw values as tab-separated text to the system clipboard. The paste dialog and the multi-cell paste handler distribute user-provided tab/newline-separated text into cells. The plugin does not read clipboard contents in the background. Obsidian's native table clipboard data remains handled by Obsidian.
+[Open the plugin listing](https://obsidian.md/plugins?id=good-tables)
 
-## Release verification
+### Manual installation
 
-Run `npm run lint` to check source against the official Obsidian ESLint rules. The development-only Moment override updates the official lint tool's transitive dependency; it is not bundled into the plugin.
+1. Open [GitHub Releases](https://github.com/MEKBANSUKOZINGER/Good-Tables/releases) and download **main.js**, **manifest.json**, and **styles.css**.
+2. Put all three files in your vault's `.obsidian/plugins/good-tables/` folder.
+3. Reload Obsidian and enable **Good Tables** in **Settings → Community plugins**.
 
-The manually triggered **Build and attest release assets** workflow builds and tests the selected branch or tag, generates GitHub provenance attestations, and provides the three installation files as a workflow artifact. To keep the attestations valid, upload those exact extracted files as the release assets. The workflow does not create or publish a release.
+The optional `good-tables-1.0.0.zip` contains the same three files inside a `good-tables/` folder. Extract that folder into `.obsidian/plugins/`. GitHub's automatic source archives require building first.
 
-For every version update, publish a new GitHub Release with a tag exactly matching `manifest.json` and attach **main.js**, **manifest.json**, and **styles.css** individually.
+### Your first table
 
-For a repository outside the vault, generate the QA note with `node scripts/prepare-qa.mjs "<vault-path>"`. Run live QA with Obsidian in the foreground; background timer throttling can delay the UI. The optional `globalThis.goodTablesQADelay` value adjusts waits in the table QA scripts. Use `tests/settings-qa.js` to check the actual settings window; it restores settings after the checks.
+1. Run **Good Tables: Create table** from the command palette or click the table ribbon icon. You can also start with an existing Markdown table.
+2. Set the total row and column counts and, optionally, a diagonal first cell. Title rows and columns are assigned manually.
+3. Select a cell, rectangular range, row, or column, then right-click to format it.
+
+Assign a shortcut to **Create table** in Obsidian's Hotkeys settings. No shortcut is assigned automatically.
+
+## 💬 Good to know
+
+<details>
+<summary><strong>What happens to the Markdown or when I disable the plugin?</strong></summary>
+
+Cell contents remain in an ordinary Markdown table, including the hidden values under merges. Presentation metadata is stored immediately after it as unused Markdown reference definitions beginning with `[good-tables-` and a `good-tables:` destination.
+
+Keep that reference block with its table when copying or moving the Markdown. Reading view hides it; Good Tables also hides it in Live Preview. Source mode shows the full source.
+
+Disabling the plugin removes its presentation and leaves the ordinary table and its raw values. A first-use dialog and an unload notice explain the display change.
+
+</details>
+
+<details>
+<summary><strong>Which editing and selection behaviors are supported?</strong></summary>
+
+Use native cell editing, Tab navigation, row/column handles, clipboard actions, and document undo/redo. Good Tables adds no numbered selectors or extra resize handles. Only applicable actions appear; original-value copy/edit commands are hidden for plain selections with no Good Tables presentation.
+
+Row/column moves carry formatting and title assignments. If a move breaks a merged rectangle, only that merge is undone and its original cells remain. Moving the diagonal cell away from the first corner ends its diagonal display and retains the joined text.
+
+If an ambiguous external structural edit cannot be mapped safely, the plugin preserves its metadata and stops applying it. Undo the edit or use **Reset Good Tables information for this table**. Reset is undoable.
+
+Fileclass note-property and schema actions are omitted only inside table-cell menus; they remain available in the ordinary note editor. Settings changes update tables immediately and are separate from document undo/redo.
+
+</details>
+
+<details>
+<summary><strong>How are numbers, dates, bars, and ratings interpreted?</strong></summary>
+
+- Numbers accept plain signed integers and decimals. Commas, units, percentages, exponent notation, and nonfinite values are rejected by numeric formats.
+- Calculated percentages exclude titles by default, blank cells, invalid values, and covered cells of a merge. Percentage formats reject negative values; a later negative edit displays `(!NUM)` until corrected.
+- Bars shift negative data by the minimum before calculating shares. A zero total produces zero-length bars. Original-number labels are the default.
+- Date, date/time, and time accept exactly 8, 12, and 4 digits. Calendar validity is not checked. Their display patterns are configurable.
+- Ratings use `☆` for a half star, preserve exact halves, round other fractions to integers, and clamp to the configured maximum. Above 10, the display is `★ X N` with a rounded integer count.
+
+</details>
+
+<details>
+<summary><strong>Is mobile supported? What about languages and privacy?</strong></summary>
+
+Good Tables is desktop-only. It follows Obsidian's English/Korean language, offers a manual override, and falls back to English for other languages.
+
+The plugin runs locally and makes no network requests or telemetry uploads. It saves table edits through Obsidian's editor and settings through the plugin data API.
+
+**Clipboard access:** **Copy original values** writes the selected raw values as tab-separated text to the system clipboard. The paste dialog and multi-cell paste handler interpret user-provided tabs/newlines as columns/rows. Clipboard contents are not read in the background, and Obsidian's own table clipboard data stays with its native handler.
+
+</details>
+
+---
+
+## 🛠️ Development and feedback
+
+See [development, local installation, and release checks](docs/DEVELOPMENT.md) for build and QA instructions.
+
+Found a problem? [Open an issue](https://github.com/MEKBANSUKOZINGER/Good-Tables/issues) with your Obsidian and Good Tables versions, editing/reading mode, theme, and a small example table. Include steps to reproduce it and a screenshot when useful.
+
+[MIT License](LICENSE) · Copyright © 2026 MEKBANSUKOZINGER.

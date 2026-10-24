@@ -98,14 +98,15 @@
       rows[0][0] = '아래위';
     });
     await wait();
-    const lower = document.querySelector('.gt-diagonal-lower');
+    const lower = view.containerEl.querySelector('.gt-diagonal-lower');
     lower.focus();
     lower.value = '한글 | 입력\n둘째 줄';
     lower.setSelectionRange(3, 3);
     lower.dispatchEvent(new window.InputEvent('input', { bubbles: true }));
     await wait();
     assert(
-      document.querySelector('.gt-diagonal-lower') === lower && document.activeElement === lower,
+      view.containerEl.querySelector('.gt-diagonal-lower') === lower &&
+        document.activeElement === lower,
       'Native rebuild lost inline node/focus',
     );
     assert(
