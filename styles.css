@@ -5,6 +5,35 @@
 .gt-cell {
   position: relative;
 }
+.gt-cell.gt-colored-text,
+.gt-merge-overlay.gt-colored-text {
+  --bold-color: var(--gt-fg);
+  --italic-color: var(--gt-fg);
+  --strong-color: var(--gt-fg);
+  --em-color: var(--gt-fg);
+}
+:is(.markdown-rendered, .markdown-source-view)
+  :is(table.gt-table .gt-colored-text, .gt-merge-overlay.gt-colored-text)
+  :is(
+    strong,
+    b,
+    em,
+    i,
+    s,
+    del,
+    mark,
+    code,
+    a,
+    .cm-strong,
+    .cm-em,
+    .cm-strikethrough,
+    .cm-highlight,
+    .cm-inline-code,
+    .cm-link,
+    .cm-url
+  ) {
+  color: var(--gt-fg);
+}
 .markdown-source-view
   table.gt-table
   .gt-colored-background
@@ -41,12 +70,29 @@
 .gt-bar {
   background-image: linear-gradient(
     to right,
-    color-mix(in srgb, var(--interactive-accent) 25%, transparent) var(--gt-fraction),
+    color-mix(in srgb, var(--gt-bar-color, var(--interactive-accent)) 25%, transparent)
+      var(--gt-fraction),
     transparent var(--gt-fraction)
   );
 }
 .gt-error {
   color: var(--text-error);
+}
+.gt-rating,
+.gt-rating code {
+  white-space: pre;
+}
+.gt-rating-measure {
+  position: absolute;
+  visibility: hidden;
+  pointer-events: none;
+  user-select: none;
+  white-space: pre;
+  width: max-content;
+  padding: var(--table-cell-padding, 6px 10px);
+}
+.gt-rating-measure code {
+  white-space: pre;
 }
 .gt-selected {
   outline: 2px solid var(--interactive-accent);

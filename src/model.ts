@@ -19,6 +19,9 @@ export interface CellMeta {
   format?: Format;
   background?: string;
   color?: string;
+  titleBackground?: string;
+  titleColor?: string;
+  barColor?: string;
 }
 export interface Metadata {
   version: 1;
@@ -41,6 +44,7 @@ export interface Settings {
   fullWidth: boolean;
   titleBackground: string;
   titleColor: string;
+  barColor: string;
   decimals: number;
   date: string;
   datetime: string;
@@ -64,7 +68,7 @@ export const FORMAT_ORDER: FormatKind[] = [
   'rating',
   'custom',
 ];
-export const MENU_ORDER = ['diagonal', 'title', 'format', 'merge', 'background', 'color'];
+export const MENU_ORDER = ['diagonal', 'title', 'merge', 'background', 'color', 'barColor'];
 export const DEFAULTS: Settings = {
   language: 'auto',
   rows: 3,
@@ -73,6 +77,7 @@ export const DEFAULTS: Settings = {
   fullWidth: false,
   titleBackground: '',
   titleColor: '',
+  barColor: '',
   decimals: 2,
   date: 'YYYY-MM-DD',
   datetime: 'YYYY-MM-DD HH:mm',
@@ -141,7 +146,7 @@ export function normalizeSettings(raw: unknown): Settings {
     s[name] = typeof s[name] === 'boolean' ? s[name] : DEFAULTS[name];
   if (!['auto', 'en', 'ko'].includes(s.language)) s.language = 'auto';
   if (!['value', 'percent'].includes(s.barLabel)) s.barLabel = 'value';
-  for (const name of ['titleBackground', 'titleColor'] as const)
+  for (const name of ['titleBackground', 'titleColor', 'barColor'] as const)
     if (typeof s[name] !== 'string' || !/^$|^#[\da-f]{6}$/i.test(s[name])) s[name] = '';
   for (const name of ['date', 'datetime', 'time'] as const) {
     const tokens =

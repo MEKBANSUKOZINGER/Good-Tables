@@ -41,7 +41,7 @@
   }
   assert(root?.dom.isConnected, 'Root menu missing');
   const item = root.items.find(
-    (item) => item.submenu && item.dom.dataset.section === 'good-tables',
+    (item) => item.submenu && item.submenu.items.some((child) => child.section === 'good-tables'),
   );
   assert(item, 'Good Tables submenu missing');
   const child = item.submenu;

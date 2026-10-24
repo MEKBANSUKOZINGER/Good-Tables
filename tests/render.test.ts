@@ -11,6 +11,7 @@ import {
   appendMenuGroup,
   filterTableMenu,
   nativeSelection,
+  placeFormatGroup,
 } from '../src/native-table';
 function fixture() {
   const window = new Window();
@@ -616,4 +617,130 @@ test('table menu removes note-property commands while preserving native and edit
   assert.equal(clicks, 1);
   filterTableMenu(menu);
   assert.equal(items.length, 4, 'Repeated filtering must be harmless');
+});
+
+test('rating rendering preserves native emphasis and measures unwrapped stars even while editing', () => {
+  const { table } = fixture();
+  const rows = [
+      ['A', 'B'],
+      ['==***10***==', '3'],
+    ],
+    m = makeMetadata(rows);
+  applyFormat(rows, m, { r0: 1, r1: 1, c0: 0, c1: 0 }, 'cell', 'rating', {
+    ...DEFAULTS,
+    ratingMax: 100,
+  });
+  const render = decorateTable(table as unknown as HTMLTableElement, rows, m, {
+    ...DEFAULTS,
+    ratingMax: 100,
+  });
+  const cell = table.rows[1].cells[0];
+  assert.equal(cell.querySelector('.gt-display mark strong em')?.textContent, '★★★★★★★★★★');
+  assert.ok(parseFloat(cell.style.minWidth) >= 188);
+  const measure = cell.querySelector('.gt-rating-measure');
+  assert.equal(measure?.getAttribute('aria-hidden'), 'true');
+  cell.classList.add('gt-editing');
+  render.update(rows, m, { ...DEFAULTS, ratingMax: 100 });
+  assert.equal(cell.querySelector('.gt-rating-measure'), measure);
+  rows[1][0] = '`10`';
+  render.update(rows, m, DEFAULTS);
+  assert.equal(cell.querySelector('.gt-display,.gt-rating-measure'), null);
+  render.dispose();
+});
+
+test('title overrides and custom translucent bar color use separate style properties', () => {
+  const { table } = fixture();
+  const rows = [
+      ['A', 'B'],
+      ['1', '3'],
+    ],
+    m = makeMetadata(rows);
+  m.headerRows = [0];
+  m.cells[0][0].titleBackground = '#112233';
+  m.cells[0][0].titleColor = '#445566';
+  applyFormat(rows, m, { r0: 1, r1: 1, c0: 0, c1: 1 }, 'row', 'bar', DEFAULTS);
+  m.cells[1][0].barColor = '#123456';
+  const render = decorateTable(table as unknown as HTMLTableElement, rows, m, {
+    ...DEFAULTS,
+    barColor: '#654321',
+  });
+  assert.equal(table.rows[0].cells[0].style.getPropertyValue('--gt-bg'), '#112233');
+  assert.equal(table.rows[0].cells[0].style.getPropertyValue('--gt-fg'), '#445566');
+  assert.equal(
+    table.rows[1].cells[0].querySelector('.gt-bar')?.getAttribute('style')?.includes('#123456'),
+    true,
+  );
+  assert.equal(
+    table.rows[1].cells[1].querySelector('.gt-bar')?.getAttribute('style')?.includes('#654321'),
+    true,
+  );
+  render.dispose();
+});
+
+test('table formats insert between native advanced and clear groups without replacing native items', () => {
+  for (const prefix of ['selection', 'selection.format']) {
+    const basic = { section: prefix + '.basic' },
+      advanced = { section: prefix + '.advanced' },
+      clear = { section: prefix + '.danger' };
+    const percent = { section: 'good-tables' },
+      rating = { section: 'good-tables' };
+    const items = [basic, advanced, clear, percent, rating];
+    const menu = { items, sections: [] as string[] };
+    placeFormatGroup(menu, 'good-tables');
+    assert.equal(menu.items, items);
+    assert.deepEqual(items, [basic, advanced, percent, rating, clear]);
+    assert.deepEqual(menu.sections, [
+      prefix + '.basic',
+      prefix + '.advanced',
+      'good-tables',
+      prefix + '.danger',
+    ]);
+    assert.equal(items[0], basic);
+    assert.equal(items.at(-1), clear);
+  }
+});
+
+test('changing a native highlight color updates formatted output without changing its value', () => {
+  const { table } = fixture();
+  const rows = [
+      ['A', 'B'],
+      ['==🔴10==', '3'],
+    ],
+    m = makeMetadata(rows);
+  applyFormat(rows, m, { r0: 1, r1: 1, c0: 0, c1: 0 }, 'cell', 'rating', {
+    ...DEFAULTS,
+    ratingMax: 100,
+  });
+  const render = decorateTable(table as unknown as HTMLTableElement, rows, m, {
+    ...DEFAULTS,
+    ratingMax: 100,
+  });
+  const display = table.rows[1].cells[0].querySelector('.gt-display')!;
+  assert.equal(display.textContent, '★★★★★★★★★★');
+  assert.equal(display.querySelector('mark')?.getAttribute('data-highlight'), 'red');
+  rows[1][0] = '==🔵10==';
+  render.update(rows, m, { ...DEFAULTS, ratingMax: 100 });
+  assert.equal(display.querySelector('mark')?.getAttribute('data-highlight'), 'blue');
+  assert.equal(display.textContent, '★★★★★★★★★★');
+  render.dispose();
+});
+
+test('merged Markdown inherits an explicit foreground and releases its override when removed', () => {
+  const { table } = fixture(),
+    rows = [
+      ['**A**', 'B'],
+      ['1', '3'],
+    ],
+    m = makeMetadata(rows);
+  m.cells[0][0].color = '#123456';
+  mergeCells(m, { r0: 0, r1: 0, c0: 0, c1: 1 });
+  const render = decorateTable(table as unknown as HTMLTableElement, rows, m, DEFAULTS);
+  const overlay = table.parentElement!.querySelector('.gt-merge-overlay')!;
+  assert.equal(overlay.classList.contains('gt-colored-text'), true);
+  assert.equal((overlay as unknown as HTMLElement).style.getPropertyValue('--gt-fg'), '#123456');
+  delete m.cells[0][0].color;
+  render.update(rows, m, DEFAULTS);
+  assert.equal(overlay.classList.contains('gt-colored-text'), false);
+  assert.equal((overlay as unknown as HTMLElement).style.getPropertyValue('--gt-fg'), '');
+  render.dispose();
 });

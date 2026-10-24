@@ -66,7 +66,10 @@
       !binding().element.querySelector('.gt-resize-row,.gt-resize-column'),
       'Extra resize handles remain',
     );
-    const formats = root.items.find((item) => name(item) === p.t('format')).submenu.items.map(name);
+    const formats = root.items
+      .find((item) => name(item) === p.t('format'))
+      .submenu.items.filter((i) => i.section === 'good-tables')
+      .map(name);
     assert(
       formats.at(-1) === p.t('custom') && formats.includes('QA units'),
       'Custom is not pinned below saved formats',
@@ -106,8 +109,8 @@
     names = own(root);
     assert(
       names.includes(p.t('clearTitle')) &&
-        !names.includes(p.t('background')) &&
-        !names.includes(p.t('color')) &&
+        names.includes(p.t('background')) &&
+        names.includes(p.t('color')) &&
         !names.includes(p.t('format')),
       'Title-only menu exposes unsupported commands',
     );
@@ -115,18 +118,20 @@
     root = await menu({ r0: 0, r1: 1, c0: 0, c1: 0 });
     assert(!own(root).includes(p.t('merge')), 'Title-crossing merge visible');
     root.hide();
-    results.push('title-only and title-crossing selections hide incompatible actions');
+    results.push('title colors remain available and title-crossing merges remain hidden');
     p.apply(binding(), (_, m) => {
       m.cells[1][0].format = { kind: 'rating', group: 'qa', scope: 'cell' };
     });
     await wait();
     root = await menu(pair);
     assert(
-      !own(root).includes(p.t('format')),
-      'Partially formatted range should not offer an unusable submenu',
+      root.items
+        .find((item) => name(item) === p.t('format'))
+        ?.submenu.items.some((item) => item.section === 'good-tables'),
+      'Partially formatted range should offer replacement formats',
     );
     root.hide();
-    results.push('partially formatted ranges hide the format submenu');
+    results.push('partially formatted ranges offer all eligible replacement formats');
     p.apply(binding(), (_, m) => {
       delete m.cells[1][0].format;
       m.cells[1][0].background = '#e5607a';

@@ -166,9 +166,10 @@
     const submenu = [...document.querySelectorAll('.menu')].find((menu) =>
       [...menu.querySelectorAll('.menu-item-title')].some((el) => el.textContent === 'QA currency'),
     );
-    const titles = [...(submenu?.querySelectorAll('.menu-item-title') ?? [])].map(
-      (el) => el.textContent,
-    );
+    const titles = [
+      ...(submenu?.querySelectorAll('.menu-item[data-section="good-tables"] .menu-item-title') ??
+        []),
+    ].map((el) => el.textContent);
     assert(
       titles[0] === 'QA currency',
       'Saved format did not become first standalone item: ' + JSON.stringify(titles),

@@ -111,7 +111,7 @@
     await test('native and extension context-menu coexist', async () => {
       await menu({ r0: 0, r1: 0, c0: 0, c1: 2 }, 'row', 0, 0);
       assert(
-        titles().includes('행') && titles().includes('서식 설정'),
+        titles().includes('행') && titles().includes('서식'),
         'Native and extension items did not coexist',
       );
       await click('제목 행 / 열 설정');
@@ -125,7 +125,7 @@
     });
     await test('Calc format displays values while Markdown retains raw numbers', async () => {
       await menu({ r0: 0, r1: 3, c0: 1, c1: 1 }, 'column', 1, 1);
-      await click('서식 설정');
+      await click('서식');
       await click('비율(Calc%)');
       const b = binding();
       const displayed = [...b.element.querySelectorAll('.gt-display')].map((el) => el.textContent);
@@ -148,14 +148,20 @@
       await wait();
       assert(view.editor.getValue() === before, 'Redo did not restore exact source');
     });
-    await test('same format toggles off and inapplicable overlapping formats stay hidden', async () => {
+    await test('all applicable formats stay visible, replace the current format, and toggle off', async () => {
       const before = view.editor.getValue();
       await menu({ r0: 0, r1: 3, c0: 1, c1: 1 }, 'column', 1, 1);
-      await click('서식 설정');
-      assert(!titles().includes('별점'), 'Inapplicable rating menu should be hidden');
-      assert(view.editor.getValue() === before, 'Overlapping format changed source');
+      await click('서식');
+      assert(titles().includes('별점'), 'Replacement rating menu is missing');
+      await click('별점');
+      assert(meta().cells[1][1].format.kind === 'rating', 'Replacement failed');
+      assert(view.editor.getValue() !== before, 'Replacement did not update metadata');
       await menu({ r0: 0, r1: 3, c0: 1, c1: 1 }, 'column', 1, 1);
-      await click('서식 설정');
+      await click('서식');
+      await click('비율(Calc%)');
+      assert(meta().cells[1][1].format.kind === 'calc', 'Switch back failed');
+      await menu({ r0: 0, r1: 3, c0: 1, c1: 1 }, 'column', 1, 1);
+      await click('서식');
       await click('비율(Calc%)');
       assert(!meta().cells[1][1].format, 'Format toggle failed');
     });

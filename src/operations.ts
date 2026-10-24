@@ -13,6 +13,7 @@ import {
   inheritedFormat,
 } from './model';
 import { escapeCell } from './markdown';
+import { exclusiveInline, inlineCell } from './inline';
 export function checkRect(rows: string[][], a: Rect): void {
   if (
     ![a.r0, a.r1, a.c0, a.c1].every(Number.isInteger) ||
@@ -50,8 +51,13 @@ export function toggleTitle(m: Metadata, a: Rect, axis: Axis): void {
   if (axis === 'row') m.headerRows = next;
   else m.headerCols = next;
 }
-export const numeric = (raw: string): number | null =>
-  /^[+-]?(?:\d+(?:\.\d+)?|\.\d+)$/.test(raw) && Number.isFinite(Number(raw)) ? Number(raw) : null;
+export const numeric = (raw: string): number | null => {
+  const value = inlineCell(raw).text;
+  if (exclusiveInline(raw)) return null;
+  return /^[+-]?(?:\d+(?:\.\d+)?|\.\d+)$/.test(value) && Number.isFinite(Number(value))
+    ? Number(value)
+    : null;
+};
 export function applyFormat(
   rows: string[][],
   m: Metadata,
@@ -63,6 +69,7 @@ export function applyFormat(
 ): void {
   const cells = positions(a).filter(([r, c]) => s.formatTitles || !isTitle(m, r, c));
   if (!cells.length) throw new TableError('title');
+  if (cells.some(([r, c]) => exclusiveInline(rows[r][c]))) throw new TableError('exclusiveFormat');
   const existing = cells.map(([r, c]) => m.cells[r][c].format);
   const identical = existing.every(
     (f) =>
@@ -73,7 +80,6 @@ export function applyFormat(
     cells.forEach(([r, c]) => delete m.cells[r][c].format);
     return;
   }
-  if (existing.some(Boolean)) throw new TableError('overlap');
   if (
     (kind === 'percent' || kind === 'calc') &&
     cells.some(([r, c]) => {
@@ -97,15 +103,22 @@ export function applyFormat(
 export function colorCells(
   m: Metadata,
   a: Rect,
-  property: 'background' | 'color',
+  property: 'background' | 'color' | 'barColor',
   color: string | null,
 ): void {
   if (color !== null && !/^#[\da-f]{6}$/i.test(color)) throw new TableError('color');
-  const cells = positions(a).filter(([r, c]) => !isTitle(m, r, c));
-  if (!cells.length) throw new TableError('title');
+  const cells = positions(a).filter(
+    ([r, c]) => property !== 'barColor' || m.cells[r][c].format?.kind === 'bar',
+  );
   cells.forEach(([r, c]) => {
-    if (color === null) delete m.cells[r][c][property];
-    else m.cells[r][c][property] = color;
+    const key =
+      isTitle(m, r, c) && property !== 'barColor'
+        ? property === 'background'
+          ? 'titleBackground'
+          : 'titleColor'
+        : property;
+    if (color === null) delete m.cells[r][c][key];
+    else m.cells[r][c][key] = color;
   });
 }
 export function mergeCells(m: Metadata, a: Rect): void {

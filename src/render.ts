@@ -2,6 +2,7 @@ import { Metadata, Rect, Settings, contains, isTitle } from './model';
 import { displayCell } from './formats';
 import { restoreClasses } from './native-table';
 import { escapeCell } from './markdown';
+import { exclusiveInline, fillInline, inlineCell } from './inline';
 export interface RenderHooks {
   label: (key: 'edit' | 'lower' | 'upper') => string;
   select: (a: Rect, axis: 'cell' | 'row' | 'column', event: MouseEvent) => void;
@@ -54,6 +55,16 @@ export function decorateTable(
   const disposers = new Set<() => void>(),
     added = new Set<HTMLElement>();
   const displays = new Map<HTMLTableCellElement, HTMLElement>();
+  const measures = new Map<HTMLTableCellElement, HTMLElement>();
+  const displayKeys = new WeakMap<HTMLElement, string>();
+  const fillDisplay = (element: HTMLElement, text: string, raw: string) => {
+    const presentation = inlineCell(raw),
+      key = JSON.stringify([text, presentation]);
+    if (displayKeys.get(element) !== key) {
+      fillInline(element, text, presentation);
+      displayKeys.set(element, key);
+    }
+  };
   const overlays = new Map<string, Overlay>();
   const originals = new Map<
     HTMLElement,
@@ -395,14 +406,19 @@ export function decorateTable(
           title = !!data && isTitle(data, r, c);
         cell.classList.toggle(
           'gt-colored-background',
-          !!(title ? settings.titleBackground : meta?.background),
+          !!(title ? (meta?.titleBackground ?? settings.titleBackground) : meta?.background),
         );
-        cell.classList.toggle('gt-colored-text', !!(title ? settings.titleColor : meta?.color));
+        cell.classList.toggle(
+          'gt-colored-text',
+          !!(title ? (meta?.titleColor ?? settings.titleColor) : meta?.color),
+        );
         cell.classList.toggle('gt-title', title);
         const background = title
-          ? settings.titleBackground || 'var(--background-secondary)'
+          ? meta?.titleBackground || settings.titleBackground || 'var(--background-secondary)'
           : meta?.background;
-        const color = title ? settings.titleColor || 'var(--text-normal)' : meta?.color;
+        const color = title
+          ? meta?.titleColor || settings.titleColor || 'var(--text-normal)'
+          : meta?.color;
         if (background) {
           wanted['--gt-bg'] = background;
           wanted['background-color'] = background;
@@ -416,26 +432,63 @@ export function decorateTable(
           wanted.width = `${data.widths[c]}px`;
         }
         if (data?.heights[r]) wanted.height = `${data.heights[r]}px`;
-        if (data && meta?.format && (!title || settings.formatTitles)) {
+        if (
+          data &&
+          meta?.format &&
+          (!title || settings.formatTitles) &&
+          !exclusiveInline(rows[r][c])
+        ) {
           const output = displayCell(rows, data, r, c, settings);
           let display = displays.get(cell);
           if (!display) {
             display = track(cell.createSpan({ cls: 'gt-display' }));
             displays.set(cell, display);
           }
-          if (display.textContent !== output.text) display.textContent = output.text;
+          fillDisplay(display, output.text, rows[r][c]);
           display.setAttribute('aria-label', output.text);
           display.classList.toggle('gt-bar', output.fraction !== undefined);
           display.classList.toggle('gt-error', !!output.error);
+          display.classList.toggle('gt-rating', meta.format.kind === 'rating');
+          if (output.fraction !== undefined)
+            display.style.setProperty(
+              '--gt-bar-color',
+              meta.barColor || settings.barColor || 'var(--interactive-accent)',
+            );
           if (output.fraction !== undefined)
             display.style.setProperty('--gt-fraction', `${output.fraction * 100}%`);
           wanted['min-width'] =
             `${Math.max(data.widths[c] ?? 0, Math.min(600, output.text.length * 9 + 28))}px`;
+          if (meta.format.kind === 'rating') {
+            let measure = measures.get(cell);
+            if (!measure) {
+              measure = track(
+                cell.createSpan({ cls: 'gt-rating-measure', attr: { 'aria-hidden': 'true' } }),
+              );
+              measures.set(cell, measure);
+            }
+            fillDisplay(measure, output.text, rows[r][c]);
+            const measured = measure.getBoundingClientRect().width;
+            const fallback =
+              output.text.length * (parseFloat(window.getComputedStyle(cell).fontSize) || 16) + 28;
+            wanted['min-width'] =
+              `${Math.max(data.widths[c] ?? 0, Math.ceil(measured ? measured + 4 : fallback))}px`;
+          }
         } else {
           const display = displays.get(cell);
           if (display) {
             remove(display);
             displays.delete(cell);
+          }
+        }
+        if (
+          meta?.format?.kind !== 'rating' ||
+          (title && !settings.formatTitles) ||
+          exclusiveInline(rows[r][c])
+        ) {
+          const measure = measures.get(cell);
+          if (measure) {
+            remove(measure);
+            measures.delete(cell);
           }
         }
         if (data?.diagonal && r === 0 && c === 0) {
@@ -464,9 +517,14 @@ export function decorateTable(
           color: anchor.style.getPropertyValue('--gt-fg') || 'var(--text-normal)',
         });
         entry.element.classList.toggle('gt-title', isTitle(data, rect.r0, rect.c0));
+        entry.element.classList.toggle(
+          'gt-colored-text',
+          anchor.classList.contains('gt-colored-text'),
+        );
+        entry.element.setCssProps({ '--gt-fg': anchor.style.getPropertyValue('--gt-fg') });
         const output = displayCell(rows, data, rect.r0, rect.c0, settings);
         const rich = !data.cells[rect.r0][rect.c0].format && !!renderMarkdown;
-        const contentKey = `${rich}:${output.text}`;
+        const contentKey = `${rich}:${output.text}:${rows[rect.r0][rect.c0]}`;
         if (entry.text !== contentKey) {
           entry.cleanup?.();
           entry.cleanup = undefined;
@@ -475,10 +533,26 @@ export function decorateTable(
             const target = entry.element.createDiv({ cls: 'gt-merge-content' });
             const cleanup = renderMarkdown?.(output.text, target);
             if (cleanup) entry.cleanup = cleanup;
-          } else entry.element.textContent = output.text.replace(/<br\s*\/?>/gi, '\n');
+          } else
+            fillDisplay(
+              entry.element,
+              output.text.replace(/<br\s*\/?>/gi, '\n'),
+              rows[rect.r0][rect.c0],
+            );
           entry.text = contentKey;
         }
         entry.element.classList.toggle('gt-bar', output.fraction !== undefined);
+        entry.element.classList.toggle(
+          'gt-rating',
+          data.cells[rect.r0][rect.c0].format?.kind === 'rating',
+        );
+        if (output.fraction !== undefined)
+          entry.element.style.setProperty(
+            '--gt-bar-color',
+            data.cells[rect.r0][rect.c0].barColor ||
+              settings.barColor ||
+              'var(--interactive-accent)',
+          );
         if (output.fraction !== undefined)
           entry.element.style.setProperty('--gt-fraction', `${output.fraction * 100}%`);
       }

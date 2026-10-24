@@ -56,6 +56,28 @@ export interface MenuDOM {
   scrollEl?: HTMLElement;
   items?: { section?: string; dom?: HTMLElement; titleEl?: HTMLElement }[];
   selected?: number;
+  sections?: string[];
+}
+
+/** Put the plugin's format section between native advanced and clear-format
+ * groups without recreating any native item, callback, or submenu. */
+export function placeFormatGroup(menu: MenuDOM, section: string): void {
+  const items = menu.items;
+  if (!items) return;
+  const own = items.filter((item) => item.section === section);
+  if (!own.length) return;
+  const rest = items.filter((item) => item.section !== section);
+  const index = rest.findIndex((item) => item.section?.endsWith('.danger'));
+  rest.splice(index < 0 ? rest.length : index, 0, ...own);
+  items.splice(0, items.length, ...rest);
+  const sections = [...new Set(items.flatMap((item) => (item.section ? [item.section] : [])))];
+  menu.sections?.splice(0, menu.sections.length, ...sections);
+  if (!menu.dom?.isConnected || !menu.scrollEl) return;
+  const next = rest[(index < 0 ? rest.length : index) + own.length];
+  const anchor = next?.dom?.closest('.menu-group');
+  const group = menu.scrollEl.createDiv({ cls: 'menu-group' });
+  for (const item of own) if (item.dom) group.append(item.dom);
+  if (anchor?.parentElement === menu.scrollEl) menu.scrollEl.insertBefore(group, anchor);
 }
 
 // Fileclass adds these note/schema operations to every editor-menu, including

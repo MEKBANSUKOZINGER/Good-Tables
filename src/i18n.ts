@@ -10,7 +10,7 @@ const messages = {
   close: ['Close', '닫기'],
   title: ['Set title row / column', '제목 행 / 열 설정'],
   clearTitle: ['Clear title', '제목 해제'],
-  format: ['Format', '서식 설정'],
+  format: ['Format', '서식'],
   merge: ['Merge cells', '칸 병합'],
   unmerge: ['Unmerge cells', '병합 취소'],
   background: ['Background color', '배경색 설정'],
@@ -59,6 +59,7 @@ const messages = {
   ratingMax: ['Maximum rating', '별점 최댓값'],
   formatTitles: ['Allow formats on title cells', '제목 행·열에도 서식 적용'],
   barLabel: ['Bar label', '막대 표시 값'],
+  barColor: ['Bar color', '막대 색'],
   value: ['Original number', '원본 숫자'],
   percentLabel: ['Percentage', '비율'],
   favorites: ['Favorite colors', '자주 쓰는 색'],
@@ -83,6 +84,10 @@ const messages = {
   overlap: [
     'A selected cell already has a format. Remove it before applying another.',
     '선택 영역에 이미 서식이 있습니다. 기존 서식을 먼저 해제하세요.',
+  ],
+  exclusiveFormat: [
+    'Code, comments and math cannot be combined with table formats.',
+    '코드·주석·수식은 표 서식과 함께 적용할 수 없습니다.',
   ],
   negative: [
     'Percentage formats cannot be applied to negative values.',

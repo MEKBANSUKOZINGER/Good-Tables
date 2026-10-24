@@ -35,6 +35,7 @@ import { displayCell } from '../src/formats';
 import { EditorState, Transaction } from '@codemirror/state';
 import { metadataSynchronization } from '../src/metadata-sync';
 import { nativeMovement } from '../src/native-table';
+import { inlineCell, exclusiveInline } from '../src/inline';
 const settings = () => structuredClone(DEFAULTS);
 const cell = { r0: 0, r1: 0, c0: 0, c1: 0 };
 const throws = (fn: () => void, code: string) =>
@@ -97,16 +98,19 @@ test('invalid and unsupported metadata is preserved and refused', () => {
   m.cells[0][1].id = m.cells[0][0].id;
   assert.equal(validMetadata(m), false);
 });
-test('formatting is atomic, toggles off and blocks partially formatted selections', () => {
+test('format choices replace existing and partial formats, and identical selections toggle off', () => {
   const rows = [['1', '2']],
     m = makeMetadata(rows),
     s = settings();
   applyFormat(rows, m, cell, 'cell', 'percent', s);
-  const before = structuredClone(m);
-  throws(() => applyFormat(rows, m, { ...cell, c1: 1 }, 'row', 'calc', s), 'overlap');
-  assert.deepEqual(m, before);
+  applyFormat(rows, m, { ...cell, c1: 1 }, 'row', 'calc', s);
+  assert.ok(m.cells[0].every((c) => c.format?.kind === 'calc'));
+  applyFormat(rows, m, { ...cell, c1: 1 }, 'row', 'calc', s);
+  assert.ok(m.cells[0].every((c) => !c.format));
   applyFormat(rows, m, cell, 'cell', 'percent', s);
-  assert.equal(m.cells[0][0].format, undefined);
+  const before = structuredClone(m);
+  throws(() => applyFormat([['-1', '2']], m, { ...cell, c1: 1 }, 'row', 'calc', s), 'negative');
+  assert.deepEqual(m, before);
 });
 test('strict numeric input rejects commas, units, exponent and nonfinite values', () => {
   for (const value of ['1,000', '10%', '10kg', '1e3', 'NaN', 'Infinity', ' 3 ', '3.'])
@@ -640,7 +644,7 @@ test('context actions hide invalid scopes, title crossings, merged paste and red
   assert.equal(selectionActions(rows, m, first, 'cell', DEFAULTS).diagonal, true);
   assert.equal(selectionActions(rows, m, one, 'cell', DEFAULTS).title, false);
   m.headerRows = [0];
-  assert.equal(selectionActions(rows, m, first, 'cell', DEFAULTS).color, false);
+  assert.equal(selectionActions(rows, m, first, 'cell', DEFAULTS).color, true);
   assert.equal(
     selectionActions(rows, m, { r0: 0, r1: 1, c0: 0, c1: 0 }, 'cell', DEFAULTS).merge,
     false,
@@ -663,7 +667,7 @@ test('context actions hide invalid scopes, title crossings, merged paste and red
   assert.equal(formatMenuOrder(settings).at(-1), 'custom');
 });
 
-test('format availability mirrors overlap, title, negative and remove-format rules', () => {
+test('format availability includes replacements and partial selections, while respecting restrictions', () => {
   const rows = [
       ['A', 'B'],
       ['-1', '2'],
@@ -674,12 +678,188 @@ test('format availability mirrors overlap, title, negative and remove-format rul
   assert.equal(canFormat(rows, m, rect, 'bar', DEFAULTS), true);
   applyFormat(rows, m, rect, 'row', 'rating', DEFAULTS);
   assert.equal(canFormat(rows, m, rect, 'rating', DEFAULTS), true);
-  assert.equal(canFormat(rows, m, rect, 'bar', DEFAULTS), false);
+  assert.equal(canFormat(rows, m, rect, 'bar', DEFAULTS), true);
   delete m.cells[1][1].format;
-  assert.equal(canFormat(rows, m, rect, 'rating', DEFAULTS), false);
+  assert.equal(canFormat(rows, m, rect, 'rating', DEFAULTS), true);
   delete m.cells[1][0].format;
   applyFormat(rows, m, rect, 'row', 'custom', DEFAULTS, { prefix: '$', suffix: '' });
   assert.equal(canFormat(rows, m, rect, 'custom', DEFAULTS, { prefix: '$', suffix: '' }), true);
-  assert.equal(canFormat(rows, m, rect, 'custom', DEFAULTS, { prefix: '', suffix: 'kg' }), false);
+  assert.equal(canFormat(rows, m, rect, 'custom', DEFAULTS, { prefix: '', suffix: 'kg' }), true);
   assert.equal(canFormat(rows, m, rect, 'custom', DEFAULTS), true);
+});
+
+test('native emphasis coexists with every table format without changing Markdown', () => {
+  for (const [raw, marks] of [
+    ['**1.64**', ['strong']],
+    ['_1.64_', ['em']],
+    ['~~1.64~~', ['s']],
+    ['==1.64==', ['mark']],
+    ['***1.64***', ['strong', 'em']],
+    ['==~~***1.64***~~==', ['mark', 's', 'strong', 'em']],
+  ] as const) {
+    assert.deepEqual(inlineCell(raw), { text: '1.64', marks: [...marks], hidden: false });
+    assert.equal(numeric(raw), 1.64);
+    const rows = [[raw]],
+      m = makeMetadata(rows);
+    applyFormat(rows, m, cell, 'cell', 'percent', DEFAULTS);
+    assert.equal(displayCell(rows, m, 0, 0, DEFAULTS).text, '1.64%');
+    applyFormat(rows, m, cell, 'cell', 'rating', DEFAULTS);
+    assert.equal(displayCell(rows, m, 0, 0, DEFAULTS).text, '★★');
+    assert.equal(rows[0][0], raw);
+  }
+  const rows = [['**20261024**']],
+    m = makeMetadata(rows);
+  applyFormat(rows, m, cell, 'cell', 'date', DEFAULTS);
+  assert.equal(displayCell(rows, m, 0, 0, DEFAULTS).text, '2026-10-24');
+});
+
+test('native code, comments and math remove table formats in the same undoable transaction', () => {
+  for (const raw of ['`3`', '``3``', '%%3%%', '$3$', '$$3$$', '**`3`**']) {
+    assert.equal(exclusiveInline(raw), true);
+    const rows = [['3', '4']],
+      m = makeMetadata(rows);
+    applyFormat(rows, m, { ...cell, c1: 1 }, 'row', 'rating', DEFAULTS);
+    const original = serializeRows(rows) + '\n\n' + metadataBlock(m);
+    let state = EditorState.create({ doc: original, extensions: [metadataSynchronization()] });
+    const table = scanTables(original)[0];
+    const changed = [[raw, '4']];
+    const tr = state.update({
+      changes: { from: table.from, to: table.to, insert: serializeRows(changed) },
+    });
+    const formatted = tr.newDoc.toString(),
+      next = scanTables(formatted)[0].metadata!;
+    assert.equal(next.cells[0][0].format, undefined);
+    assert.equal(next.cells[0][1].format?.kind, 'rating');
+    assert.equal(next.cells[0][0].id, m.cells[0][0].id);
+    assert.deepEqual(next.snapshot, changed);
+    assert.equal(canFormat(changed, next, cell, 'rating', DEFAULTS), false);
+    throws(() => applyFormat(changed, next, cell, 'cell', 'rating', DEFAULTS), 'exclusiveFormat');
+    state = tr.state.update({
+      changes: { from: 0, to: tr.newDoc.length, insert: original },
+      annotations: Transaction.userEvent.of('undo'),
+    }).state;
+    assert.equal(scanTables(state.doc.toString())[0].metadata!.cells[0][0].format?.kind, 'rating');
+    state = state.update({
+      changes: { from: 0, to: state.doc.length, insert: formatted },
+      annotations: Transaction.userEvent.of('redo'),
+    }).state;
+    assert.equal(scanTables(state.doc.toString())[0].metadata!.cells[0][0].format, undefined);
+    // Legacy metadata must not resurrect after removing an exclusive wrapper.
+    const legacy = reconcile(
+      scanTables(serializeRows(changed) + '\n\n' + metadataBlock({ ...m, snapshot: changed }))[0],
+    );
+    assert.equal(legacy.cells[0][0].format, undefined);
+  }
+});
+
+test('title colors and bar colors persist independently from ordinary colors and validate strictly', () => {
+  const rows = [['1', '2']],
+    m = makeMetadata(rows);
+  m.cells[0][0].background = '#112233';
+  m.headerRows = [0];
+  colorCells(m, cell, 'background', '#445566');
+  colorCells(m, cell, 'color', '#778899');
+  assert.equal(m.cells[0][0].titleBackground, '#445566');
+  assert.equal(m.cells[0][0].background, '#112233');
+  assert.equal(m.cells[0][0].titleColor, '#778899');
+  applyFormat(rows, m, { ...cell, c1: 1 }, 'row', 'bar', { ...DEFAULTS, formatTitles: true });
+  colorCells(m, cell, 'barColor', '#aabbcc');
+  assert.equal(selectionActions(rows, m, cell, 'cell', DEFAULTS).barColor, true);
+  assert.deepEqual(scanTables(serializeRows(rows) + '\n\n' + metadataBlock(m))[0].metadata, m);
+  colorCells(m, cell, 'background', null);
+  assert.equal(m.cells[0][0].titleBackground, undefined);
+  assert.equal(m.cells[0][0].background, '#112233');
+  const broken = structuredClone(m);
+  broken.cells[0][0].barColor = 'red';
+  assert.equal(validMetadata(broken), false);
+  assert.equal(normalizeSettings({ barColor: 'red' }).barColor, '');
+  assert.equal(normalizeSettings({ barColor: '#abcdef' }).barColor, '#abcdef');
+});
+
+test('native cell-local undo restores the format displaced by code, math or comments', () => {
+  for (const raw of ['`3`', '$3$', '%%3%%']) {
+    const rows = [['3']],
+      m = makeMetadata(rows);
+    applyFormat(rows, m, cell, 'cell', 'rating', DEFAULTS);
+    let state = EditorState.create({
+      doc: serializeRows(rows) + '\n\n' + metadataBlock(m),
+      extensions: [metadataSynchronization()],
+    });
+    const edit = (value: string, event: string) => {
+      const table = scanTables(state.doc.toString())[0];
+      state = state.update({
+        changes: { from: table.from, to: table.to, insert: serializeRows([[value]]) },
+        annotations: Transaction.userEvent.of(event),
+      }).state;
+      return scanTables(state.doc.toString())[0].metadata!;
+    };
+    assert.equal(edit(raw, 'input').cells[0][0].format, undefined);
+    assert.equal(edit('3', 'undo').cells[0][0].format?.kind, 'rating');
+    assert.deepEqual(edit(raw, 'redo').snapshot, [[raw]]);
+    assert.equal(
+      edit('3', 'input').cells[0][0].format,
+      undefined,
+      'Manually removing code must not resurrect old formatting',
+    );
+  }
+});
+
+test('native colored highlights strip only their marker and retain the native color attribute', () => {
+  for (const [token, color] of [
+    ['🔴', 'red'],
+    ['🟠', 'orange'],
+    ['🟡', 'yellow'],
+    ['🟢', 'green'],
+    ['🔵', 'blue'],
+    ['🟣', 'purple'],
+  ]) {
+    const raw = '==' + token + '***10***==';
+    assert.equal(numeric(raw), 10);
+    const parsed = inlineCell(raw);
+    assert.deepEqual(parsed.marks, ['mark', 'strong', 'em']);
+    assert.equal(parsed.highlightColors?.[0], color);
+    assert.equal(numeric(token + '10'), null);
+    assert.equal(numeric('==🔴10kg=='), null);
+  }
+});
+
+test('plain selections hide original-value commands while decorated selections retain valid commands', () => {
+  const rows = [
+      ['A', 'B'],
+      ['4', '3'],
+    ],
+    m = makeMetadata(rows),
+    one = { r0: 1, r1: 1, c0: 0, c1: 0 },
+    pair = { ...one, c1: 1 };
+  for (const rect of [one, pair]) {
+    const actions = selectionActions(rows, m, rect, 'cell', DEFAULTS);
+    assert.equal(actions.copy, false);
+    assert.equal(actions.edit, false);
+  }
+  for (const decoration of ['format', 'color', 'background', 'title', 'merge', 'diagonal']) {
+    const meta = makeMetadata(rows);
+    let rect = one;
+    if (decoration === 'format') applyFormat(rows, meta, one, 'cell', 'rating', DEFAULTS);
+    if (decoration === 'color') meta.cells[1][0].color = '#123456';
+    if (decoration === 'background') meta.cells[1][0].background = '#123456';
+    if (decoration === 'title') meta.headerRows = [1];
+    if (decoration === 'merge') meta.merges = [pair];
+    if (decoration === 'diagonal') {
+      meta.diagonal = { lower: 'A', upper: '' };
+      rect = { r0: 0, r1: 0, c0: 0, c1: 0 };
+    }
+    assert.equal(selectionActions(rows, meta, rect, 'cell', DEFAULTS).copy, true, decoration);
+    assert.equal(selectionActions(rows, meta, rect, 'cell', DEFAULTS).edit, true, decoration);
+  }
+  m.cells[1][0].color = '#123456';
+  assert.equal(selectionActions(rows, m, pair, 'cell', DEFAULTS).copy, true);
+  assert.equal(selectionActions(rows, m, pair, 'cell', DEFAULTS).edit, false);
+  delete m.cells[1][0].color;
+  m.cells[1][0].barColor = '#123456';
+  m.cells[1][0].titleColor = '#123456';
+  assert.equal(
+    selectionActions(rows, m, one, 'cell', DEFAULTS).copy,
+    false,
+    'Inactive stored colors do not decorate a plain cell',
+  );
 });

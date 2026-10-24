@@ -9,7 +9,7 @@
   const wait = () => new Promise((resolve) => setTimeout(resolve, 300));
   const tab = app.setting.pluginTabs.find((tab) => tab.plugin === p);
   assert(tab, 'Good Tables settings tab missing');
-  let document = tab.containerEl.ownerDocument;
+  let document = globalThis.document;
   let window = document.defaultView;
   const flatten = (items) => items.flatMap((item) => (item.items ? flatten(item.items) : [item]));
   const row = (label) =>
@@ -40,23 +40,25 @@
       groups.some((group) => group.heading === p.t('tableSettings')),
       'Table settings group missing',
     );
-    for (const key of ['titleBackground', 'titleColor']) {
+    for (const key of ['titleBackground', 'titleColor', 'barColor']) {
       const input = row(p.t(key)).querySelector('input[type=text]');
-      assert(input, 'Title color HEX input missing');
+      assert(input, 'Title/bar color HEX input missing');
       input.value = '#abcdef';
       input.dispatchEvent(new window.Event('input', { bubbles: true }));
       await wait();
-      assert(p.settings[key] === '#abcdef', 'Title color HEX did not save');
+      assert(p.settings[key] === '#abcdef', 'Title/bar color HEX did not save');
       assert(
         row(p.t(key)).querySelector('.gt-setting-color-preview')?.style.backgroundColor ===
           'rgb(171, 205, 239)',
-        'Visible title color preview did not update',
+        'Visible title/bar color preview did not update',
       );
       input.value = '#invalid';
       input.dispatchEvent(new window.Event('input', { bubbles: true }));
-      assert(p.settings[key] === '#abcdef', 'Invalid title HEX saved');
+      assert(p.settings[key] === '#abcdef', 'Invalid title/bar HEX saved');
     }
-    results.push('new table defaults separated and both title color HEX fields save valid values');
+    results.push(
+      'new table defaults separated; title and bar color HEX fields save and preview valid values',
+    );
 
     const rowsInput = row(p.t('rows')).querySelector('input');
     rowsInput.value = '0';

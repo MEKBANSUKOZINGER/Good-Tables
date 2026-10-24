@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.2.4 — 2026-10-24
+
+- Give explicit Good Tables foreground colors priority over theme-specific bold, italic, and highlight colors in Live Preview, native cell editing, reading view, and merged content. Clearing the foreground restores theme styling.
+- Hide original-value copy/edit commands for plain selections with no Good Tables formatting, colors, titles, merges, or diagonal cells. Keep native copy/editing and valid original-value actions available.
+
+Validation: 66 automated tests and 29 live-app QA scenarios passed on Obsidian 1.14.5 with the Things theme.
+
+## 0.2.3 — 2026-10-24
+
+- Integrate Good Tables formats into the native Format submenu, after Code/Math/Comment and before Clear formatting, preserving native items and hover behavior.
+- Keep all applicable formats visible, check the active format, replace existing or mixed formats, and toggle off an identical selection.
+- Combine table formats with native bold, italic, strikethrough, and highlight. Applying Code, Comment, or Math removes the table format, with native cell and document undo/redo support.
+- Measure rendered rating stars and native emphasis to keep them inside the cell border during display and editing.
+- Allow individual title background/text colors while preserving underlying ordinary colors.
+- Add a default Bar color setting and individual bar color controls, always retaining 25% opacity.
+
+Validation: 64 automated tests and 70 live-app QA scenarios passed on Obsidian 1.14.5, including native cell undo/redo and all six native highlight colors.
+
 ## 0.2.2 — 2026-10-24
 
 - Add native Obsidian icons to every Good Tables context-menu action and format, including saved custom formats and the reset fallback.

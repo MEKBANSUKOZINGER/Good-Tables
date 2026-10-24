@@ -69,7 +69,7 @@ export class GoodTablesSettings extends PluginSettingTab {
         },
       });
     }
-    for (const key of ['titleBackground', 'titleColor'] as const) {
+    for (const key of ['titleBackground', 'titleColor', 'barColor'] as const) {
       tableSettings.push({
         name: t(key),
         render: (row) => {
@@ -78,7 +78,11 @@ export class GoodTablesSettings extends PluginSettingTab {
             preview.setCssStyles({
               backgroundColor:
                 p.settings[key] ||
-                (key === 'titleBackground' ? 'var(--background-secondary)' : 'var(--text-normal)'),
+                (key === 'titleBackground'
+                  ? 'var(--background-secondary)'
+                  : key === 'barColor'
+                    ? 'var(--interactive-accent)'
+                    : 'var(--text-normal)'),
             });
             preview.setAttribute('aria-label', t(key) + ' ' + (p.settings[key] || t('theme')));
             preview.setAttribute('title', p.settings[key] || t('theme'));

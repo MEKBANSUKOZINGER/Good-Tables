@@ -1,4 +1,5 @@
 import { Metadata, TableError, makeMetadata, FormatKind, inheritedFormat } from './model';
+import { exclusiveInline } from './inline';
 export interface Row {
   raw: string;
   prefix: string;
@@ -226,8 +227,12 @@ export function validMetadata(v: unknown): v is Metadata {
       if (!cell || typeof cell.id !== 'string' || ids.has(cell.id)) return false;
       ids.add(cell.id);
       if (
-        (cell.background && !/^#[\da-f]{6}$/i.test(cell.background)) ||
-        (cell.color && !/^#[\da-f]{6}$/i.test(cell.color))
+        ['background', 'color', 'titleBackground', 'titleColor', 'barColor'].some((key) => {
+          const value = (cell as unknown as Record<string, unknown>)[key];
+          return (
+            value !== undefined && (typeof value !== 'string' || !/^#[\da-f]{6}$/i.test(value))
+          );
+        })
       )
         return false;
       if (
@@ -403,7 +408,7 @@ export function reconcile(t: Table): Metadata {
   }
   const m = structuredClone(t.metadata);
   m.alignments = [...t.divider.values];
-  if (JSON.stringify(m.snapshot) === JSON.stringify(rows)) return m;
+  if (JSON.stringify(m.snapshot) === JSON.stringify(rows)) return removeExclusiveFormats(m, rows);
   const combined = combinedPermutation(m.snapshot, rows);
   if (combined && combined.rows.some((r, i) => r !== i) && combined.columns.some((c, i) => c !== i))
     return remapMetadata(m, rows, combined.rows, combined.columns);
@@ -491,5 +496,14 @@ export function remapMetadata(
       m.diagonal = { lower: rows[0][0], upper: '' };
   }
   m.snapshot = rows;
+  return removeExclusiveFormats(m, rows);
+}
+
+function removeExclusiveFormats(m: Metadata, rows: string[][]): Metadata {
+  rows.forEach((row, r) =>
+    row.forEach((raw, c) => {
+      if (exclusiveInline(raw)) delete m.cells[r][c].format;
+    }),
+  );
   return m;
 }

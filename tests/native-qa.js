@@ -65,7 +65,9 @@
           title: i.titleEl.textContent,
           section: i.section,
           disabled: i.disabled,
-          children: i.submenu ? signature(i.submenu) : undefined,
+          children: i.submenu
+            ? signature(i.submenu).filter((child) => child.section !== 'good-tables')
+            : undefined,
         }));
     const original = p.menu;
     const open = async (enhance) => {

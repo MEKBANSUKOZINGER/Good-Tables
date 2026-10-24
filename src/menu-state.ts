@@ -10,6 +10,7 @@ import {
   positions,
 } from './model';
 import { checkRect, numeric, toggleTitle } from './operations';
+import { exclusiveInline } from './inline';
 
 /** Only expose actions that can run for this selection, using the same rules as edits. */
 export function selectionActions(
@@ -23,6 +24,13 @@ export function selectionActions(
   const selected = positions(rect);
   const single = rect.r0 === rect.r1 && rect.c0 === rect.c1;
   const merged = metadata.merges.some((merge) => intersects(merge, rect));
+  const decorated =
+    merged ||
+    !!(metadata.diagonal && contains(rect, 0, 0)) ||
+    selected.some(([r, c]) => {
+      const cell = metadata.cells[r][c];
+      return !!(cell.format || cell.background || cell.color || isTitle(metadata, r, c));
+    });
   const titleFlags = selected.map(([r, c]) => isTitle(metadata, r, c));
   let title = axis !== 'cell';
   if (title) {
@@ -41,16 +49,19 @@ export function selectionActions(
       (!titleFlags.some(Boolean) || titleFlags.every(Boolean)) &&
       !(metadata.diagonal && contains(rect, 0, 0)),
     unmerge: merged,
-    color: !titleFlags.every(Boolean),
+    color: true,
+    barColor: selected.some(([r, c]) => metadata.cells[r][c].format?.kind === 'bar'),
+    copy: decorated,
     edit:
-      single ||
-      metadata.merges.some(
-        (merge) =>
-          merge.r0 === rect.r0 &&
-          merge.r1 === rect.r1 &&
-          merge.c0 === rect.c0 &&
-          merge.c1 === rect.c1,
-      ),
+      decorated &&
+      (single ||
+        metadata.merges.some(
+          (merge) =>
+            merge.r0 === rect.r0 &&
+            merge.r1 === rect.r1 &&
+            merge.c0 === rect.c0 &&
+            merge.c1 === rect.c1,
+        )),
     paste: !merged,
     format: selected.some(([r, c]) => settings.formatTitles || !isTitle(metadata, r, c)),
   };
@@ -67,6 +78,7 @@ export function canFormat(
     ([r, c]) => settings.formatTitles || !isTitle(metadata, r, c),
   );
   if (!selected.length) return false;
+  if (selected.some(([r, c]) => exclusiveInline(rows[r][c]))) return false;
   const existing = selected.map(([r, c]) => metadata.cells[r][c].format);
   const target = kind === 'custom' && !custom ? existing[0] : custom;
   if (
@@ -78,7 +90,6 @@ export function canFormat(
     )
   )
     return true;
-  if (existing.some(Boolean)) return false;
   return !(
     (kind === 'percent' || kind === 'calc') &&
     selected.some(([r, c]) => {

@@ -2,7 +2,7 @@
 
 Good Tables adds presentation and editing tools to Obsidian's native Markdown tables. It supports existing tables without replacing the native table editor.
 
-Desktop only. Version **0.2.2** requires Obsidian **1.14.4 or later**. [한국어 안내](README.ko.md) · [Changelog](CHANGELOG.md).
+Desktop only. Version **0.2.4** requires Obsidian **1.14.4 or later**. [한국어 안내](README.ko.md) · [Changelog](CHANGELOG.md).
 
 ## Features
 
@@ -19,9 +19,11 @@ Desktop only. Version **0.2.2** requires Obsidian **1.14.4 or later**. [한국�
 - Undo and redo document edits using Obsidian's history. Settings update existing tables immediately.
 - Follow Obsidian's English/Korean language, or override it in settings. Other languages fall back to English.
 
-Good Tables preserves the native menu for selected ranges, ordinary cells and focused cell editors, then appends its own entries after a separator. Native formatting, alignment, clipboard actions and other plugins' entries keep their order. Native table clipboard data is handled by Obsidian. Fileclass note-property and schema commands are omitted only inside table-cell menus; they remain available in the ordinary note editor.
+Good Tables places its formats inside Obsidian's native **Format** submenu, after Code/Math/Comment and before Clear formatting. Other Good Tables actions appear below the native menu after a separator. Native formatting, alignment, clipboard actions and other plugins' entries keep their order. Native table clipboard data is handled by Obsidian. Fileclass note-property and schema commands are omitted only inside table-cell menus; they remain available in the ordinary note editor.
 
-Only applicable Good Tables actions appear for the current selection. For example, a single cell has no Merge command, and Diagonal first cell appears only on the first corner cell. Saved formats can be reordered individually; the general **Custom** entry remains last. Redundant Good Tables row/column and cell-size controls have been removed; previously stored dimensions remain compatible.
+An explicit Good Tables text color takes precedence over theme colors for bold, italic, highlighted, and merged content, including the native cell editor and reading view. Clearing that color restores theme styling. **Copy original values** and **Edit original values** are hidden for plain selections with no Good Tables formats, colors, titles, merges, or diagonal cells; native copy and editing remain available.
+
+Only applicable Good Tables actions appear for the current selection. For example, a single cell has no Merge command, and Diagonal first cell appears only on the first corner cell. All applicable table formats remain visible, including when a format is already applied. The current format is checked; choosing another replaces it, and choosing the same one removes it. This also works for ranges with mixed formats. Saved formats can be reordered individually; the general **Custom** entry remains last among Good Tables formats. Redundant Good Tables row/column and cell-size controls have been removed; previously stored dimensions remain compatible.
 
 Version 0.2.1 restores cell colors when the native editor clears inline styles on focus. The color dialog compares the current and selected colors, highlights the favorite being edited, and identifies mixed-color selections. Title background/text settings show their colors directly beside the HEX fields.
 
@@ -29,9 +31,13 @@ Version 0.1.3 synchronizes formatting metadata within native editing transaction
 
 Version 0.2.0 reuses table decoration across updates and applies changes before the next paint, avoiding temporary loss of dimensions and formatting. Focused-cell context menus wait for Obsidian's asynchronous native menu. **New table defaults** contains only rows, columns, and the diagonal switch; other table options are under **Table settings**, including editable title background/text HEX values.
 
+**Bold, italic, strikethrough, and highlight** can be combined with table formats while retaining the original Markdown. Applying native **Code, Comment, or Math** removes the table format on those cells; native undo/redo restores both. Table formats are unavailable while one of those exclusive formats is present.
+
+Title cells support individual background and text colors, separate from their ordinary colors. Bars use the default **Bar color** in settings or an individual color chosen from the cell menu, always at 25% opacity. Rating columns grow to fit the rendered stars, including native emphasis.
+
 ## Install
 
-Download `main.js`, `manifest.json`, and `styles.css` from a [GitHub release](https://github.com/MEKBANSUKOZINGER/Good-Tables/releases), or build them locally. Copy all three files into `<vault>/.obsidian/plugins/good-tables/`. Reload Obsidian and enable **Good Tables** in Community plugins. The optional `good-tables-0.2.2.zip` contains the same files inside a `good-tables/` folder; GitHub's automatic source archives require building first.
+Download `main.js`, `manifest.json`, and `styles.css` from a [GitHub release](https://github.com/MEKBANSUKOZINGER/Good-Tables/releases), or build them locally. Copy all three files into `<vault>/.obsidian/plugins/good-tables/`. Reload Obsidian and enable **Good Tables** in Community plugins. The optional `good-tables-0.2.4.zip` contains the same files inside a `good-tables/` folder; GitHub's automatic source archives require building first.
 
 The creation command is **Good Tables: Create table**. Assign its hotkey in Obsidian's Hotkeys settings. No hotkey is assigned automatically.
 
@@ -79,7 +85,7 @@ For optional live QA, generate the `qa-vault/Good Tables QA.md` note with `node 
 node scripts/obsidian-cli.mjs "<vault-name>" eval tests/live-qa.js
 ```
 
-The live QA script intentionally resets and edits only that generated QA note. It requires Obsidian's enabled official CLI. On nonstandard installations, set `OBSIDIAN_CLI` to the CLI executable path. The additional `tests/focus-qa.js`, `tests/native-qa.js`, `tests/movement-qa.js`, `tests/settings-qa.js`, `tests/stability-qa.js`, and `tests/menu-color-qa.js` scripts use the same generated QA note; open it before running each script. The CLI wrapper targets Windows installations.
+The live QA script intentionally resets and edits only that generated QA note. It requires Obsidian's enabled official CLI. On nonstandard installations, set `OBSIDIAN_CLI` to the CLI executable path. The additional `tests/theme-menu-qa.js`, `tests/integration-qa.js`, `tests/focus-qa.js`, `tests/native-qa.js`, `tests/movement-qa.js`, `tests/settings-qa.js`, `tests/stability-qa.js`, and `tests/menu-color-qa.js` scripts use the same generated QA note; open it before running each script. The CLI wrapper targets Windows installations.
 
 No user notes, development profiles, dependency directories, or local plugin settings belong in a GitHub release.
 

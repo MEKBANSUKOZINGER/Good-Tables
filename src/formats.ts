@@ -1,5 +1,6 @@
 import { Metadata, Settings, contains, isTitle } from './model';
 import { numeric } from './operations';
+import { inlineCell } from './inline';
 export interface Display {
   text: string;
   fraction?: number;
@@ -24,9 +25,11 @@ export function displayCell(
   c: number,
   s: Settings,
 ): Display {
-  const raw = rows[r][c],
+  const presentation = inlineCell(rows[r][c]);
+  const raw = presentation.text,
     format = m.cells[r][c].format;
-  if (!format || (isTitle(m, r, c) && !s.formatTitles)) return { text: raw };
+  if (!format || (isTitle(m, r, c) && !s.formatTitles)) return { text: rows[r][c] };
+  if (presentation.hidden) return { text: '' };
   const error = (code: string): Display => ({ text: `${raw}(${code})`, error: true });
   if (format.kind === 'custom')
     return { text: (format.prefix ?? '') + raw + (format.suffix ?? '') };

@@ -61,6 +61,7 @@ import {
   afterNativeContextMenu,
   appendMenuGroup,
   filterTableMenu,
+  placeFormatGroup,
   nativeMovement,
   MenuDOM,
   nativeSelection,
@@ -823,27 +824,7 @@ export default class GoodTables extends Plugin {
       if (typeof extended.setSubmenu === 'function') {
         const child = extended.setSubmenu();
         build(child);
-        const owner = (item as MenuItem & { dom?: HTMLElement }).dom;
-        const panel = (child as Menu & { dom?: HTMLElement }).dom;
-        if (owner && panel) {
-          const runtime = menu as Menu & {
-            selected?: number;
-            items?: MenuItem[];
-            openSubmenuSoon?: { cancel: () => void };
-          };
-          const dispose = closeSubmenuOnExit(
-            owner,
-            panel,
-            () => {
-              if (runtime.selected !== undefined && runtime.items?.[runtime.selected] === item)
-                runtime.openSubmenuSoon?.cancel();
-              child.hide();
-            },
-            150,
-            () => this.submenuDisposers.delete(dispose),
-          );
-          this.submenuDisposers.add(dispose);
-        }
+        this.watchSubmenu(menu, item, child);
       } else
         item.setTitle(label + ' ›').onClick((event) => {
           const child = new Menu();
@@ -854,6 +835,29 @@ export default class GoodTables extends Plugin {
           });
         });
     });
+  }
+  private watchSubmenu(menu: Menu, item: MenuItem, child: Menu): void {
+    const owner = (item as MenuItem & { dom?: HTMLElement }).dom;
+    const panel = (child as Menu & { dom?: HTMLElement }).dom;
+    if (owner && panel) {
+      const runtime = menu as Menu & {
+        selected?: number;
+        items?: MenuItem[];
+        openSubmenuSoon?: { cancel: () => void };
+      };
+      const dispose = closeSubmenuOnExit(
+        owner,
+        panel,
+        () => {
+          if (runtime.selected !== undefined && runtime.items?.[runtime.selected] === item)
+            runtime.openSubmenuSoon?.cancel();
+          child.hide();
+        },
+        150,
+        () => this.submenuDisposers.delete(dispose),
+      );
+      this.submenuDisposers.add(dispose);
+    }
   }
   menu(menu: Menu, editor: Editor, contextBinding = this.active): void {
     const b = contextBinding;
@@ -915,7 +919,9 @@ export default class GoodTables extends Plugin {
           const f = m.cells[r][c].format;
           return (
             f?.kind === kind &&
-            (kind !== 'custom' || (f.prefix === custom?.prefix && f.suffix === custom?.suffix))
+            (kind !== 'custom' ||
+              (f.prefix === (custom ?? m.cells[eligible[0][0]][eligible[0][1]].format)?.prefix &&
+                f.suffix === (custom ?? m.cells[eligible[0][0]][eligible[0][1]].format)?.suffix))
           );
         });
       item(
@@ -928,7 +934,9 @@ export default class GoodTables extends Plugin {
               this.app,
               t('custom'),
               (modal) => {
-                const existing = m.cells[binding.rect.r0][binding.rect.c0].format;
+                const existing = eligible.length
+                  ? m.cells[eligible[0][0]][eligible[0][1]].format
+                  : undefined;
                 const prefix = modal.text(
                     t('prefix'),
                     existing?.kind === 'custom' ? (existing.prefix ?? '') : '',
@@ -957,6 +965,26 @@ export default class GoodTables extends Plugin {
         checked,
       );
     };
+    if (actions.format && availableFormats.length) {
+      const build = (target: Menu) => {
+        for (const id of availableFormats) {
+          const preset = this.settings.presets.find((entry) => `preset:${entry.id}` === id);
+          if (preset) addFormat(target, 'custom', preset, preset.name);
+          else addFormat(target, id as FormatKind);
+        }
+      };
+      const nativeItem = (
+        menu as Menu & { items?: (MenuItem & { section?: string; submenu?: Menu })[] }
+      ).items?.find(
+        (entry) =>
+          (entry.section === 'selection' || entry.section === 'selection.format') && entry.submenu,
+      );
+      if (nativeItem?.submenu) {
+        build(nativeItem.submenu);
+        placeFormatGroup(nativeItem.submenu as Menu & MenuDOM, 'good-tables');
+        this.watchSubmenu(menu, nativeItem, nativeItem.submenu);
+      } else this.submenu(menu, t('format'), 'paintbrush', build);
+    }
     for (const key of this.settings.menuOrder) {
       if (key === 'diagonal' && actions.diagonal)
         item(
@@ -987,18 +1015,7 @@ export default class GoodTables extends Plugin {
             .setChecked(checked)
             .onClick(() => act((_, meta, a) => toggleTitle(meta, a, binding.axis))),
         );
-      } else if (key === 'format' && actions.format && availableFormats.length)
-        this.submenu(menu, t('format'), 'paintbrush', (sub) => {
-          for (const id of availableFormats) {
-            if (id.startsWith('preset:')) {
-              const preset = this.settings.presets.find(
-                (entry) => `preset:${entry.id ?? ''}` === id,
-              );
-              if (preset) addFormat(sub, 'custom', preset, preset.name);
-            } else addFormat(sub, id as FormatKind);
-          }
-        });
-      else if (key === 'merge') {
+      } else if (key === 'merge') {
         if (actions.merge)
           item(menu, t('merge'), 'table-cells-merge', () =>
             act((_, meta, a) => mergeCells(meta, a)),
@@ -1007,53 +1024,77 @@ export default class GoodTables extends Plugin {
           item(menu, t('unmerge'), 'table-cells-split', () =>
             act((_, meta, a) => unmergeCells(meta, a)),
           );
-      } else if ((key === 'background' || key === 'color') && actions.color)
-        item(menu, t(key), key === 'background' ? 'paint-bucket' : 'baseline', () => {
-          const colors = new Set<string>();
-          for (const table of scanTables(editor.getValue())) {
-            if (
-              table.metadata &&
-              (table.metadata.headerRows.length || table.metadata.headerCols.length)
-            ) {
-              if (this.settings.titleBackground) colors.add(this.settings.titleBackground);
-              if (this.settings.titleColor) colors.add(this.settings.titleColor);
-            }
-            for (const row of table.metadata?.cells ?? [])
-              for (const cell of row) {
-                if (cell.background) colors.add(cell.background);
-                if (cell.color) colors.add(cell.color);
+      } else if (
+        (key === 'background' || key === 'color' || key === 'barColor') &&
+        (key === 'barColor' ? actions.barColor : actions.color)
+      )
+        item(
+          menu,
+          t(key),
+          key === 'background' ? 'paint-bucket' : key === 'barColor' ? 'chart-bar' : 'baseline',
+          () => {
+            const colors = new Set<string>();
+            for (const table of scanTables(editor.getValue())) {
+              if (
+                table.metadata &&
+                (table.metadata.headerRows.length || table.metadata.headerCols.length)
+              ) {
+                if (this.settings.titleBackground) colors.add(this.settings.titleBackground);
+                if (this.settings.titleColor) colors.add(this.settings.titleColor);
               }
-          }
-          const selectedColors = new Set(
-            positions(binding.rect)
-              .filter(([r, c]) => !isTitle(m, r, c))
-              .map(([r, c]) => m.cells[r][c][key] ?? ''),
-          );
-          new ColorModal(
-            this.app,
-            t,
-            t(key),
-            selectedColors.size === 1 ? [...selectedColors][0] : null,
-            Array.from(colors),
-            this.settings.favorites,
-            (color) => act((_, meta, a) => colorCells(meta, a, key, color)),
-          ).open();
-        });
+              for (const row of table.metadata?.cells ?? [])
+                for (const cell of row) {
+                  for (const color of [
+                    cell.background,
+                    cell.color,
+                    cell.titleBackground,
+                    cell.titleColor,
+                    cell.barColor,
+                  ])
+                    if (color) colors.add(color);
+                }
+            }
+            if (this.settings.barColor) colors.add(this.settings.barColor);
+            const selectedColors = new Set(
+              positions(binding.rect)
+                .filter(([r, c]) => key !== 'barColor' || m.cells[r][c].format?.kind === 'bar')
+                .map(([r, c]) => {
+                  const cell = m.cells[r][c];
+                  if (key === 'barColor') return cell.barColor ?? this.settings.barColor;
+                  if (isTitle(m, r, c))
+                    return key === 'background'
+                      ? (cell.titleBackground ?? this.settings.titleBackground)
+                      : (cell.titleColor ?? this.settings.titleColor);
+                  return cell[key] ?? '';
+                }),
+            );
+            new ColorModal(
+              this.app,
+              t,
+              t(key),
+              selectedColors.size === 1 ? [...selectedColors][0] : null,
+              Array.from(colors),
+              this.settings.favorites,
+              (color) => act((_, meta, a) => colorCells(meta, a, key, color)),
+            ).open();
+          },
+        );
     }
     if (actions.edit)
       item(menu, t('edit'), 'pencil', () => this.edit(binding, binding.rect.r0, binding.rect.c0));
-    item(menu, t('copy'), 'copy', () => {
-      const data = values(binding.table),
-        a = binding.rect;
-      void binding.element.ownerDocument.defaultView?.navigator.clipboard
-        .writeText(
-          data
-            .slice(a.r0, a.r1 + 1)
-            .map((row) => row.slice(a.c0, a.c1 + 1).join('\t'))
-            .join('\n'),
-        )
-        .catch((error) => this.fail(error));
-    });
+    if (actions.copy)
+      item(menu, t('copy'), 'copy', () => {
+        const data = values(binding.table),
+          a = binding.rect;
+        void binding.element.ownerDocument.defaultView?.navigator.clipboard
+          .writeText(
+            data
+              .slice(a.r0, a.r1 + 1)
+              .map((row) => row.slice(a.c0, a.c1 + 1).join('\t'))
+              .join('\n'),
+          )
+          .catch((error) => this.fail(error));
+      });
     if (actions.paste)
       item(menu, t('paste'), 'clipboard-paste', () =>
         new FormModal(
