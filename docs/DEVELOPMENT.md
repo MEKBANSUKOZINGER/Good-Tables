@@ -44,20 +44,21 @@ The CLI wrapper targets Windows installations and requires Obsidian's enabled of
 
 Run the following scripts separately against that generated note:
 
-| Script                     | Coverage                                                                                  |
-| -------------------------- | ----------------------------------------------------------------------------------------- |
-| `tests/live-qa.js`         | Core creation, display, colors, merges, clipboard, settings, and history.                 |
-| `tests/native-qa.js`       | Native selection/menu compatibility and scoped Fileclass filtering.                       |
-| `tests/focus-qa.js`        | Selection boundaries and submenu hover behavior.                                          |
-| `tests/movement-qa.js`     | Row/column moves, duplicate values, and style identity.                                   |
-| `tests/stability-qa.js`    | Layout frames, inline diagonal continuity, and saved-format order.                        |
-| `tests/menu-color-qa.js`   | Applicable menu actions and color previews.                                               |
-| `tests/settings-qa.js`     | Real settings UI, validation, saved formats, and favorites.                               |
-| `tests/integration-qa.js`  | Native emphasis, exclusive styles, value formats, colors, and rating width.               |
-| `tests/theme-menu-qa.js`   | Theme foreground priority and conditional original-value actions.                         |
-| `tests/clear-format-qa.js` | Native Clear formatting, value/color cleanup, scoped selection, structure, and undo/redo. |
-| `tests/merge-fit-qa.js`    | Automatic merged-cell height, wrapping, async content, and undo/redo.                     |
-| `tests/lifecycle-qa.js`    | Disable/enable cleanup, source preservation, and settings restoration.                    |
+| Script                        | Coverage                                                                                         |
+| ----------------------------- | ------------------------------------------------------------------------------------------------ |
+| `tests/live-qa.js`            | Core creation, display, colors, merges, clipboard, settings, and history.                        |
+| `tests/native-qa.js`          | Native selection/menu compatibility and scoped Fileclass filtering.                              |
+| `tests/focus-qa.js`           | Selection boundaries and submenu hover behavior.                                                 |
+| `tests/movement-qa.js`        | Row/column moves, duplicate values, and style identity.                                          |
+| `tests/stability-qa.js`       | Layout frames, inline diagonal continuity, and saved-format order.                               |
+| `tests/menu-color-qa.js`      | Applicable menu actions and color previews.                                                      |
+| `tests/settings-qa.js`        | Real settings UI, validation, saved formats, and favorites.                                      |
+| `tests/integration-qa.js`     | Native emphasis, exclusive styles, value formats, colors, and rating width.                      |
+| `tests/theme-menu-qa.js`      | Theme foreground priority and conditional original-value actions.                                |
+| `tests/title-structure-qa.js` | Blank-table row/column insertion, title identity, Tab growth, header weight, and native history. |
+| `tests/clear-format-qa.js`    | Native Clear formatting, value/color cleanup, scoped selection, structure, and undo/redo.        |
+| `tests/merge-fit-qa.js`       | Automatic merged-cell height, wrapping, async content, and undo/redo.                            |
+| `tests/lifecycle-qa.js`       | Disable/enable cleanup, source preservation, and settings restoration.                           |
 
 Settings checks restore their original values. Lifecycle QA temporarily disables and re-enables the plugin. Use a development vault and the generated note for these checks.
 
@@ -65,7 +66,7 @@ Settings checks restore their original values. Lifecycle QA temporarily disables
 
 1. Match `manifest.json`, `package.json`, the root and package entries in `package-lock.json`, and `versions.json`.
 2. Run the build and checks above.
-3. Publish a new GitHub Release with a tag **exactly matching the manifest version**, such as `1.0.0`.
+3. Publish a new GitHub Release with a tag **exactly matching the manifest version**, such as `1.0.1`.
 4. Attach **main.js**, **manifest.json**, and **styles.css individually as Release Assets**. A ZIP or links in the body do not replace them.
 
 For build provenance, run **Build and attest release assets** in GitHub Actions after uploading the source. It builds, checks, attests, and uploads the three files as an artifact. Extract that artifact and attach those exact files to the Release; editing them changes their hashes. The workflow does not publish a Release.

@@ -1,3 +1,10 @@
+.gt-table {
+  --table-header-weight: var(--font-normal, 400);
+}
+.markdown-rendered table.gt-table th:not(.gt-title),
+.markdown-source-view table.gt-table th:not(.gt-title) {
+  font-weight: var(--font-normal, 400);
+}
 .gt-table.gt-full-width {
   width: 100%;
   table-layout: auto;
@@ -50,6 +57,7 @@
 .markdown-rendered table.gt-table .gt-title,
 .markdown-source-view table.gt-table .gt-title,
 .gt-merge-overlay.gt-title {
+  --table-header-weight: 700;
   font-weight: 700;
 }
 .gt-display {

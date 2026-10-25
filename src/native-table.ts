@@ -37,6 +37,54 @@ export function nativeMovement(
     : undefined;
 }
 
+/** Native insertions focus the newly inserted empty row/column. Validate the
+ * complete old table around that position so duplicate blank values never
+ * require guessing which existing cell identity to move. */
+export function nativeInsertion(
+  before: string[][],
+  after: string[][],
+  at: { row: number; col: number },
+): TablePermutation | undefined {
+  if (!before.length || !after.length || !before[0].length || !after[0].length) return;
+  const oldWidth = before[0].length,
+    width = after[0].length;
+  if (before.some((row) => row.length !== oldWidth) || after.some((row) => row.length !== width))
+    return;
+  if (
+    !Number.isInteger(at.row) ||
+    !Number.isInteger(at.col) ||
+    at.row < 0 ||
+    at.col < 0 ||
+    at.row >= after.length ||
+    at.col >= width
+  )
+    return;
+  const rows = after.map((_, r) => r),
+    columns = after[0].map((_, c) => c);
+  if (
+    after.length === before.length + 1 &&
+    width === oldWidth &&
+    after[at.row].every((value) => value === '')
+  )
+    rows.forEach((_, r) => {
+      rows[r] = r === at.row ? -1 : r > at.row ? r - 1 : r;
+    });
+  else if (
+    after.length === before.length &&
+    width === oldWidth + 1 &&
+    after.every((row) => row[at.col] === '')
+  )
+    columns.forEach((_, c) => {
+      columns[c] = c === at.col ? -1 : c > at.col ? c - 1 : c;
+    });
+  else return;
+  return after.every((row, r) =>
+    row.every((value, c) => rows[r] < 0 || columns[c] < 0 || value === before[rows[r]][columns[c]]),
+  )
+    ? { rows, columns }
+    : undefined;
+}
+
 /** Real browser events run microtasks between listeners. Wait for native bubbling
  * before reading defaultPrevented, without preventing the native menu itself. */
 export function afterNativeContextMenu(

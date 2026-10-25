@@ -4,7 +4,7 @@
 
 **Make your Obsidian tables easier to read.**
 
-[![Version 1.0.0](https://img.shields.io/badge/version-1.0.0-7C3AED?style=flat-square)](https://github.com/MEKBANSUKOZINGER/Good-Tables/releases) ![Obsidian 1.14.4 or later](https://img.shields.io/badge/Obsidian-1.14.4%2B-483699?style=flat-square) ![Desktop only](https://img.shields.io/badge/platform-desktop-2563EB?style=flat-square) [![MIT license](https://img.shields.io/badge/license-MIT-16A34A?style=flat-square)](LICENSE) [![Buy me a Coffee](https://img.shields.io/badge/Buy%20me%20a%20Coffee-FF5E5B?style=flat-square&logo=kofi&logoColor=white)](https://ko-fi.com/mekbansukozinger)
+[![Version 1.0.1](https://img.shields.io/badge/version-1.0.1-7C3AED?style=flat-square)](https://github.com/MEKBANSUKOZINGER/Good-Tables/releases) ![Obsidian 1.14.4 or later](https://img.shields.io/badge/Obsidian-1.14.4%2B-483699?style=flat-square) ![Desktop only](https://img.shields.io/badge/platform-desktop-2563EB?style=flat-square) [![MIT license](https://img.shields.io/badge/license-MIT-16A34A?style=flat-square)](LICENSE) [![Buy me a Coffee](https://img.shields.io/badge/Buy%20me%20a%20Coffee-FF5E5B?style=flat-square&logo=kofi&logoColor=white)](https://ko-fi.com/mekbansukozinger)
 
 [Get started](#-installation) · [See the features](#-features-at-a-glance) · [한국어](README.ko.md) · [Changelog](CHANGELOG.md) · [Report an issue](https://github.com/MEKBANSUKOZINGER/Good-Tables/issues)
 
@@ -35,6 +35,8 @@ Create a native Markdown table without typing its syntax. Choose the total numbe
 4. Click **Apply** and start entering your data.
 
 Row and column counts describe the whole table: **3 rows × 4 columns creates 12 cells**. Good Tables does not automatically assign title rows or columns; choose those yourself when you need them.
+
+First-row cells use regular weight unless they belong to a title row/column or contain explicit bold formatting. Title assignments stay with their rows and columns when you insert new ones.
 
 For quicker access, assign your own shortcut to **Good Tables: Create table** in Obsidian's **Hotkeys** settings.
 
@@ -114,7 +116,7 @@ Use a visible saturation/brightness surface and hue strip, synchronized with **H
 2. Put all three files in your vault's `.obsidian/plugins/good-tables/` folder.
 3. Reload Obsidian and enable **Good Tables** in **Settings → Community plugins**.
 
-The optional `good-tables-1.0.0.zip` contains the same three files inside a `good-tables/` folder. Extract that folder into `.obsidian/plugins/`. GitHub's automatic source archives require building first.
+The optional `good-tables-1.0.1.zip` contains the same three files inside a `good-tables/` folder. Extract that folder into `.obsidian/plugins/`. GitHub's automatic source archives require building first.
 
 ### Your first table
 

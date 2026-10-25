@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.1 — 2026-10-25
+
+- Keep title rows/columns, cell identity, colors, and dimensions through native insertion into blank tables, including Tab at the last cell.
+- Render ordinary first-row text at regular weight while retaining explicit bold and designated title emphasis in Live Preview and reading view.
+- Preserve native selection, raw values, cell identity, and undo/redo while synchronizing title metadata with table edits.
+
+Validation: 83 automated tests. The unchanged feature code passed 93 relevant live-app QA scenarios on Obsidian 1.14.5 before the version update, including 13 focused title/insertion/font-weight checks.
+
 ## 1.0.0 — 2026-10-24
 
 - Mark the first stable release of Good Tables with the reviewed native-table formatting, colors, merges, and inline diagonal editing.

@@ -13,6 +13,7 @@ import {
   escapeCell,
   metadataBlock,
   reconcile,
+  remapMetadata,
   scanTables,
   serializeEdit,
   serializeRows,
@@ -37,7 +38,7 @@ import {
 import { displayCell, formatTable } from '../src/formats';
 import { EditorState, Transaction, TransactionSpec } from '@codemirror/state';
 import { metadataSynchronization, withNativeClearFormatting } from '../src/metadata-sync';
-import { nativeMovement } from '../src/native-table';
+import { nativeMovement, nativeInsertion } from '../src/native-table';
 import { inlineCell, exclusiveInline } from '../src/inline';
 const settings = () => structuredClone(DEFAULTS);
 const cell = { r0: 0, r1: 0, c0: 0, c1: 0 };
@@ -1074,4 +1075,163 @@ test('clear formatting remains one undo step without absorbing an earlier native
   assert.equal(state.doc.toString().startsWith('Changed'), true);
   assert.equal(redo(editor), true);
   assert.equal(scanTables(state.doc.toString())[0].metadata!.cells[0][0].format, undefined);
+});
+
+test('native empty-row insertions retain distinct cell identities, titles and dimensions among duplicates', () => {
+  const before = Array.from({ length: 3 }, () => ['', '', '']);
+  for (let index = 0; index <= 3; index++) {
+    const m = makeMetadata(before);
+    m.headerRows = [0, 2];
+    m.headerCols = [1];
+    m.cells[2][1].color = '#123456';
+    m.heights[2] = 48;
+    m.widths[1] = 140;
+    const after = structuredClone(before);
+    after.splice(index, 0, ['', '', '']);
+    const mapping = nativeInsertion(before, after, { row: index, col: 1 });
+    assert.ok(mapping);
+    const next = remapMetadata(m, after, mapping.rows, mapping.columns, true);
+    assert.deepEqual(
+      next.headerRows,
+      [0, 2].map((r) => (r >= index ? r + 1 : r)),
+    );
+    assert.deepEqual(next.headerCols, [1]);
+    for (let r = 0; r < 3; r++)
+      for (let c = 0; c < 3; c++)
+        assert.equal(next.cells[r >= index ? r + 1 : r][c].id, m.cells[r][c].id);
+    assert.equal(next.cells[index][1].id === m.cells[0][1].id, false);
+    assert.equal(next.cells[2 >= index ? 3 : 2][1].color, '#123456');
+    assert.equal(next.heights[2 >= index ? 3 : 2], 48);
+    assert.equal(next.widths[1], 140);
+  }
+});
+
+test('native empty-column insertions preserve title columns and extend title rows across the new column', () => {
+  const before = Array.from({ length: 3 }, () => ['', '', '']);
+  for (let index = 0; index <= 3; index++) {
+    const m = makeMetadata(before);
+    m.headerRows = [0];
+    m.headerCols = [0, 2];
+    m.cells[1][2].background = '#abcdef';
+    m.widths[2] = 145;
+    const after = before.map((row) => {
+      const next = [...row];
+      next.splice(index, 0, '');
+      return next;
+    });
+    const mapping = nativeInsertion(before, after, { row: 1, col: index });
+    assert.ok(mapping);
+    const next = remapMetadata(m, after, mapping.rows, mapping.columns, true);
+    assert.deepEqual(next.headerRows, [0]);
+    assert.deepEqual(
+      next.headerCols,
+      [0, 2].map((c) => (c >= index ? c + 1 : c)),
+    );
+    for (let r = 0; r < 3; r++)
+      for (let c = 0; c < 3; c++)
+        assert.equal(next.cells[r][c >= index ? c + 1 : c].id, m.cells[r][c].id);
+    assert.equal(next.cells[1][2 >= index ? 3 : 2].background, '#abcdef');
+    assert.equal(next.widths[2 >= index ? 3 : 2], 145);
+  }
+});
+
+test('native insertion hints reject invalid focus, nonempty inserts and unrelated value or shape changes', () => {
+  const before = [
+    ['a', 'b'],
+    ['c', 'd'],
+  ];
+  for (const [after, at] of [
+    [
+      [
+        ['a', 'b'],
+        ['', ''],
+        ['x', 'd'],
+      ],
+      { row: 1, col: 0 },
+    ],
+    [
+      [
+        ['a', 'b'],
+        ['new', ''],
+        ['c', 'd'],
+      ],
+      { row: 1, col: 0 },
+    ],
+    [
+      [
+        ['a', 'b'],
+        ['', ''],
+        ['c', 'd'],
+      ],
+      { row: 3, col: 0 },
+    ],
+    [
+      [
+        ['a', '', 'b'],
+        ['', '', ''],
+        ['c', '', 'd'],
+      ],
+      { row: 1, col: 1 },
+    ],
+    [
+      [
+        ['a', 'b'],
+        ['c', 'd'],
+      ],
+      { row: 1, col: 1 },
+    ],
+  ] as [string[][], { row: number; col: number }][])
+    assert.equal(nativeInsertion(before, after, at), undefined);
+  const blank = [
+      ['', ''],
+      ['', ''],
+    ],
+    m = makeMetadata(blank);
+  m.headerRows = [0];
+  const table = scanTables(serializeRows([...blank, ['', '']]) + '\n\n' + metadataBlock(m))[0];
+  throws(() => reconcile(table), 'stale');
+});
+
+test('native insertion synchronizes blank-table titles in one transaction and restores exact metadata on undo/redo', () => {
+  const before = Array.from({ length: 3 }, () => ['', '', '']),
+    m = makeMetadata(before);
+  m.headerRows = [0];
+  m.headerCols = [1];
+  let at = { row: 1, col: 0 };
+  const original = serializeRows(before) + '\n\n' + metadataBlock(m);
+  let state = EditorState.create({
+    doc: original,
+    extensions: metadataSynchronization(
+      () => (old, next) => nativeInsertion(values(old), values(next), at),
+    ),
+  });
+  const insert = (rows: string[][]) => {
+    const table = scanTables(state.doc.toString())[0];
+    state = state.update({
+      changes: { from: table.from, to: table.to, insert: serializeRows(rows) },
+    }).state;
+    return scanTables(state.doc.toString())[0].metadata!;
+  };
+  const rows = structuredClone(before);
+  rows.splice(1, 0, ['', '', '']);
+  const rowAdded = insert(rows);
+  assert.deepEqual(rowAdded.headerRows, [0]);
+  assert.deepEqual(rowAdded.headerCols, [1]);
+  assert.deepEqual(rowAdded.snapshot, rows);
+  at = { row: 1, col: 0 };
+  const columns = rows.map((row) => ['', ...row]),
+    colAdded = insert(columns),
+    edited = state.doc.toString();
+  assert.deepEqual(colAdded.headerCols, [2]);
+  assert.equal(colAdded.cells[0][2].id, m.cells[0][1].id);
+  state = state.update({
+    changes: { from: 0, to: state.doc.length, insert: original },
+    userEvent: 'undo',
+  }).state;
+  assert.equal(state.doc.toString(), original);
+  state = state.update({
+    changes: { from: 0, to: state.doc.length, insert: edited },
+    userEvent: 'redo',
+  }).state;
+  assert.equal(state.doc.toString(), edited);
 });

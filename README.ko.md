@@ -4,7 +4,7 @@
 
 **옵시디언 표를 더 보기 좋게.**
 
-[![Version 1.0.0](https://img.shields.io/badge/version-1.0.0-7C3AED?style=flat-square)](https://github.com/MEKBANSUKOZINGER/Good-Tables/releases) ![Obsidian 1.14.4 이상](https://img.shields.io/badge/Obsidian-1.14.4%2B-483699?style=flat-square) ![데스크톱 전용](https://img.shields.io/badge/platform-desktop-2563EB?style=flat-square) [![MIT 라이선스](https://img.shields.io/badge/license-MIT-16A34A?style=flat-square)](LICENSE) [![Ko-fi로 후원하기](https://img.shields.io/badge/Buy%20me%20a%20Coffee-FF5E5B?style=flat-square&logo=kofi&logoColor=white)](https://ko-fi.com/mekbansukozinger)
+[![Version 1.0.1](https://img.shields.io/badge/version-1.0.1-7C3AED?style=flat-square)](https://github.com/MEKBANSUKOZINGER/Good-Tables/releases) ![Obsidian 1.14.4 이상](https://img.shields.io/badge/Obsidian-1.14.4%2B-483699?style=flat-square) ![데스크톱 전용](https://img.shields.io/badge/platform-desktop-2563EB?style=flat-square) [![MIT 라이선스](https://img.shields.io/badge/license-MIT-16A34A?style=flat-square)](LICENSE) [![Ko-fi로 후원하기](https://img.shields.io/badge/Buy%20me%20a%20Coffee-FF5E5B?style=flat-square&logo=kofi&logoColor=white)](https://ko-fi.com/mekbansukozinger)
 
 [설치하기](#-설치) · [주요 기능](#-표에-표현을-더하세요) · [English](README.md) · [변경 기록](CHANGELOG.md) · [문제 제보](https://github.com/MEKBANSUKOZINGER/Good-Tables/issues)
 
@@ -35,6 +35,8 @@ Markdown 문법을 직접 입력하지 않고 기본 표를 만드세요. 전체
 4. **적용**을 누르고 내용을 입력하세요.
 
 행·열 수는 표 전체 크기입니다. **3행 × 4열이면 총 12칸**이 생성됩니다. 제목 행이나 열은 자동으로 지정하지 않으며, 필요할 때 직접 설정합니다.
+
+첫 행도 제목 행·열에 속하거나 직접 굵게 서식을 적용한 칸만 굵게 표시합니다. 행이나 열을 추가해도 기존 제목 지정은 유지됩니다.
 
 더 빠르게 실행하려면 옵시디언 **단축키** 설정에서 **Good Tables: 표 만들기**에 원하는 키를 지정하세요.
 
@@ -114,7 +116,7 @@ Markdown 문법을 직접 입력하지 않고 기본 표를 만드세요. 전체
 2. 세 파일을 볼트의 `.obsidian/plugins/good-tables/`에 넣습니다.
 3. 옵시디언을 다시 불러오고 **설정 → 커뮤니티 플러그인**에서 **Good Tables**를 켭니다.
 
-설치용 `good-tables-1.0.0.zip`에는 같은 세 파일이 `good-tables/` 폴더에 들어 있습니다. 이 폴더를 `.obsidian/plugins/`에 풀어도 됩니다. GitHub가 자동 생성하는 소스 압축 파일은 먼저 빌드해야 합니다.
+설치용 `good-tables-1.0.1.zip`에는 같은 세 파일이 `good-tables/` 폴더에 들어 있습니다. 이 폴더를 `.obsidian/plugins/`에 풀어도 됩니다. GitHub가 자동 생성하는 소스 압축 파일은 먼저 빌드해야 합니다.
 
 ### 첫 표 만들기
 

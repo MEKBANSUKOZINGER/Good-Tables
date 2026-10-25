@@ -65,6 +65,7 @@ import {
   extendClearFormatting,
   placeFormatGroup,
   nativeMovement,
+  nativeInsertion,
   MenuDOM,
   nativeSelection,
 } from './native-table';
@@ -81,6 +82,10 @@ const FORMAT_ICONS: Record<FormatKind, string> = {
   custom: 'settings-2',
 };
 
+interface NativeTableWidget {
+  rows?: { text: string }[][];
+  editor?: { tableCell?: { cell?: { row: number; col: number } } };
+}
 interface Binding {
   element: HTMLTableElement;
   table: Table;
@@ -92,6 +97,7 @@ interface Binding {
   rect: Rect;
   axis: Axis;
   native?: boolean;
+  nativeWidget?: NativeTableWidget;
 }
 type Mutation = (rows: string[][], m: Metadata, a: Rect) => void;
 interface ContextMenuRequest {
@@ -119,7 +125,7 @@ class Controller {
         id: string;
         row: number;
         col: number;
-        widget: { editor?: { tableCell?: { cell?: { row: number; col: number } } } };
+        widget: NativeTableWidget;
       }
     | undefined;
   private cancelNativeMove = (e: KeyboardEvent) => {
@@ -365,9 +371,32 @@ class Controller {
   }
   movement(old: Table, current: Table) {
     const intent = this.nativeIntent,
-      destination = intent?.widget.editor?.tableCell?.cell;
-    if (!intent || intent.id !== old.metadata?.id || !destination) return;
-    const result = nativeMovement(values(old), values(current), intent, destination);
+      matchesIntent = intent?.id === old.metadata?.id,
+      binding = this.bindings.find((b) => b.table.metadata?.id === old.metadata?.id),
+      widget = matchesIntent ? intent?.widget : binding?.nativeWidget,
+      destination = widget?.editor?.tableCell?.cell;
+    if (!destination) return;
+    const before = values(old),
+      after = values(current);
+    // A native rebuild happens before its document transaction. Source edits
+    // leave the widget at the old dimensions, so they cannot use this hint.
+    if (
+      (before.length !== after.length || before[0].length !== after[0].length) &&
+      widget?.rows?.length === after.length &&
+      widget.rows.every(
+        (row, r) =>
+          row.length === after[r].length &&
+          row.every((cell, c) => cell.text.trim() === after[r][c]),
+      )
+    ) {
+      const insertion = nativeInsertion(before, after, destination);
+      if (insertion) {
+        this.nativeIntent = undefined;
+        return insertion;
+      }
+    }
+    if (!matchesIntent || !intent) return;
+    const result = nativeMovement(before, after, intent, destination);
     if (result) this.nativeIntent = undefined;
     return result;
   }
@@ -490,6 +519,9 @@ class Controller {
         };
         b.table = table;
         b.source = source;
+        b.nativeWidget = element.closest<HTMLElement & { cmTile?: { widget?: NativeTableWidget } }>(
+          '.cm-table-widget',
+        )?.cmTile?.widget;
         try {
           checkRect(rows, b.rect);
         } catch {
